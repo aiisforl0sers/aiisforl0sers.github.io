@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prism - Organize Your Topics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@700&display=swap');
+        
+        /* Stops the white flash on rapid clicks or mobile taps */
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* Custom Scrollbar for inner content */
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 20px;
+        }
+        
+        /* Subtle fade-in animation */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-white dark:bg-gray-900 h-screen flex text-gray-700 dark:text-gray-200 transition-colors duration-300">
+
+    <!-- Sidebar Navigation -->
+    <nav class="group w-16 sm:w-20 hover:w-60 sm:hover:w-64 bg-[#f4f4f4] dark:bg-gray-800 flex flex-col items-start py-6 border-r border-gray-200 dark:border-gray-700 shrink-0 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.02)] h-full transition-[width,background-color] duration-300 ease-in-out overflow-hidden relative">
+        <button onclick="goHome()" class="flex items-center w-full mb-6 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-colors shrink-0" title="Home">
+            <div class="w-16 sm:w-20 shrink-0 flex justify-center">
+                <i data-lucide="home" class="w-8 h-8"></i>
+            </div>
+            <span class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-bold text-xl text-left">Dashboard</span>
+        </button>
+        <div id="nav-pages" class="flex flex-col gap-4 w-full overflow-y-auto overflow-x-hidden custom-scroll flex-1 pb-4">
+            <!-- Navigation numbers will be injected here -->
+        </div>
+        <button onclick="toggleSettings()" class="flex items-center w-full mt-auto text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors shrink-0" title="Settings">
+            <div class="w-16 sm:w-20 shrink-0 flex justify-center">
+                <i data-lucide="settings" class="w-6 h-6"></i>
+            </div>
+            <span class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-bold text-lg text-left">Settings</span>
+        </button>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main id="app-container" class="flex-1 flex flex-col md:flex-row h-full overflow-hidden bg-white dark:bg-gray-900 transition-colors z-10 relative">
+        <!-- Content injected via JS based on state -->
+    </main>
+
+    <!-- Settings Modal Root -->
+    <div id="settings-modal-root"></div>
+    
+    <!-- Tree Modal Root -->
+    <div id="tree-modal-root"></div>
+
+    <script>
+        // --- State Management ---
+        let activeTopicId = 1; // Start on page 1 (null = home)
+        let chartInstance = null;
+        let showSettings = false;
+        let showTreeModal = false;
+        let currentTreeTopicId = null;
+        let appSettings = {
+            darkMode: false,
+            confetti: true,
+            siriusMode: false
+        };
+
+        // Initial Data - Starting with one blank topic
+        let topicsData = [
+            { id: 1, name: "Topic 1", todos: [] }
+        ];
+
+        // Colors for the pie chart
+        const baseColors = [
+            '#a3e635', '#60a5fa', '#f472b6', '#fbbf24', 
+            '#a78bfa', '#34d399', '#fb923c', '#94a3b8'
+        ];
+
+        function getChartColors(count) {
+            let colors = [];
+            for (let i = 0; i < count; i++) {
+                colors.push(baseColors[i % baseColors.length]);
+            }
+            return colors;
+        }
+
+        // Recursive helper to count ALL tasks including sub-tasks
+        function countTodos(todos) {
+            if (!todos) return 0;
+            return todos.reduce((acc, todo) => acc + 1 + countTodos(todo.subTodos), 0);
+        }
+
+        // Recursive helper to find a specific task anywhere in the tree
+        function findTodo(todos, id) {
+            if (!todos) return null;
+            for (let todo of todos) {
+                if (todo.id === id) return todo;
+                let found = findTodo(todo.subTodos, id);
+                if (found) return found;
+            }
+            return null;
+        }
+
+        // Recursive helper to remove a specific task anywhere in the tree
+        function removeTodo(todos, id) {
+            if (!todos) return [];
+            return todos.filter(todo => {
+                if (todo.id === id) return false;
+                todo.subTodos = removeTodo(todo.subTodos, id);
+                return true;
+            });
+        }
+
+        // --- Core Functions ---
+
+        function renderApp() {
+            renderSidebar();
+            renderSettingsModal();
+            renderTreeModal();
+            
+            const container = document.getElementById('app-container');
+            container.innerHTML = ''; // Clear current content
+
+            if (activeTopicId === null) {
+                renderHome(container);
+            } else {
+                renderTopicView(container, activeTopicId);
+            }
+            
+            // Re-initialize icons for newly added DOM elements
+            lucide.createIcons();
+        }
+
+        function renderSidebar() {
+            const navContainer = document.getElementById('nav-pages');
+            navContainer.innerHTML = '';
+
+            topicsData.forEach(topic => {
+                const isActive = activeTopicId === topic.id;
+                const btn = document.createElement('button');
+                btn.onclick = () => switchTopic(topic.id);
+                btn.className = `w-full py-2 flex items-center transition-all shrink-0 ${
+                    isActive 
+                    ? 'text-gray-800 dark:text-white border-r-4 border-gray-500 dark:border-gray-400 bg-gray-200 dark:bg-gray-700' 
+                    : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border-r-4 border-transparent'
+                }`;
+                
+                // Clean up the name specifically for topics that haven't been renamed yet
+                const topicDisplayName = topic.name === "Topic " + topic.id ? 'New Topic' : topic.name;
+                
+                btn.innerHTML = `
+                    <div class="w-16 sm:w-20 shrink-0 flex justify-center text-xl font-bold">
+                        ${topic.id}
+                    </div>
+                    <span class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap text-left font-semibold truncate pr-4 flex-1">
+                        ${topicDisplayName}
+                    </span>
+                `;
+                navContainer.appendChild(btn);
+            });
+
+            // Add Page Button (Wraps inside a container to morph gracefully on hover)
+            const addContainer = document.createElement('div');
+            addContainer.className = 'w-full mt-2 flex justify-center group-hover:px-4 transition-all duration-300';
+            
+            const addBtn = document.createElement('button');
+            addBtn.onclick = addTopic;
+            addBtn.className = 'flex items-center justify-start h-10 w-10 group-hover:w-full rounded-full text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-300 border-2 border-dashed border-gray-300 dark:border-gray-600 overflow-hidden';
+            addBtn.innerHTML = `
+                <div class="w-[36px] shrink-0 flex items-center justify-center h-full"><i data-lucide="plus" class="w-5 h-5"></i></div>
+                <span class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap font-medium text-sm text-left flex-1 overflow-hidden truncate">Add Topic</span>
+            `;
+            
+            addContainer.appendChild(addBtn);
+            navContainer.appendChild(addContainer);
+        }
+
+        function renderSettingsModal() {
+            const root = document.getElementById('settings-modal-root');
+            root.innerHTML = `
+                <div class="fixed inset-0 bg-black/20 dark:bg-black/60 z-50 flex items-center justify-center transition-opacity duration-200 ${showSettings ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden transform transition-transform duration-200 ${showSettings ? 'scale-100' : 'scale-95'}">
+                        <!-- Header -->
+                        <div class="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
+                            <h3 class="text-lg font-bold text-gray-700 dark:text-white">Settings</h3>
+                            <button onclick="toggleSettings()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                                <i data-lucide="x" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                        <!-- Body -->
+                        <div class="p-6 flex flex-col gap-6">
+                            <!-- Dark Mode -->
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="font-medium text-gray-700 dark:text-white">Dark Mode</p>
+                                    <p class="text-sm text-gray-400">Easy on the eyes.</p>
+                                </div>
+                                <button onclick="toggleSetting('darkMode')" class="w-12 h-6 rounded-full transition-colors relative flex items-center p-1 ${appSettings.darkMode ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'}">
+                                    <div class="w-4 h-4 rounded-full bg-white transition-transform ${appSettings.darkMode ? 'translate-x-6' : 'translate-x-0'}"></div>
+                                </button>
+                            </div>
+                            <!-- Confetti -->
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="font-medium text-gray-700 dark:text-white">Confetti</p>
+                                    <p class="text-sm text-gray-400">Celebrate the small wins.</p>
+                                </div>
+                                <button onclick="toggleSetting('confetti')" class="w-12 h-6 rounded-full transition-colors relative flex items-center p-1 ${appSettings.confetti ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'}">
+                                    <div class="w-4 h-4 rounded-full bg-white transition-transform ${appSettings.confetti ? 'translate-x-6' : 'translate-x-0'}"></div>
+                                </button>
+                            </div>
+                            <!-- Sirius Mode -->
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="font-medium text-gray-700 dark:text-white">Very Sirius Mode</p>
+                                    <p class="text-sm text-gray-400">For maximum productivity. 👔</p>
+                                </div>
+                                <button onclick="toggleSetting('siriusMode')" class="w-12 h-6 rounded-full transition-colors relative flex items-center p-1 ${appSettings.siriusMode ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'}">
+                                    <div class="w-4 h-4 rounded-full bg-white transition-transform ${appSettings.siriusMode ? 'translate-x-6' : 'translate-x-0'}"></div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        function openTreeModal(topicId) {
+            currentTreeTopicId = topicId;
+            showTreeModal = true;
+            renderApp();
+        }
+
+        function closeTreeModal() {
+            showTreeModal = false;
+            currentTreeTopicId = null;
+            renderApp();
+        }
+
+        function renderTreeModal() {
+            const root = document.getElementById('tree-modal-root');
+            if (!showTreeModal || currentTreeTopicId === null) {
+                root.innerHTML = `<div class="fixed inset-0 bg-black/20 dark:bg-black/60 z-50 flex items-center justify-center transition-opacity duration-200 opacity-0 pointer-events-none"></div>`;
+                return;
+            }
+
+            const topic = topicsData.find(t => t.id === currentTreeTopicId);
+            if (!topic) return;
+
+            const topicIndex = topicsData.findIndex(t => t.id === currentTreeTopicId);
+            const themeColor = baseColors[topicIndex % baseColors.length];
+            
+            const treeTitle = appSettings.siriusMode ? 'Temporal Task Map' : 'History & Present Tree';
+            const treeSubtitle = appSettings.siriusMode ? 'Hierarchical breakdown of current and archived objectives.' : 'Watch how your tasks branch out from start to finish!';
+
+            // Recursive function to generate the visual branches
+            function generateCoolTree(todos, level = 0) {
+                if (!todos || todos.length === 0) return '';
+                
+                let html = `<div class="ml-4 sm:ml-8 pl-4 sm:pl-6 border-l-2 border-dashed transition-colors" style="border-color: ${themeColor}66;">`;
+                
+                todos.forEach(todo => {
+                    const isCompleted = todo.completed;
+                    const textStyle = isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200';
+                    const iconColor = isCompleted ? themeColor : '#9ca3af';
+                    const icon = isCompleted 
+                        ? `<div class="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5" style="background-color: ${themeColor};"><i data-lucide="check" class="w-3 h-3 text-white drop-shadow-sm"></i></div>` 
+                        : `<i data-lucide="circle" class="w-5 h-5 shrink-0 mt-0.5" style="color: ${themeColor};"></i>`;
+                    
+                    const cardBg = isCompleted ? 'bg-gray-50 dark:bg-gray-800/50 opacity-80' : 'bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700';
+
+                    html += `
+                        <div class="relative py-3 group/node">
+                            <!-- Horizontal line connecting to parent -->
+                            <div class="absolute -left-4 sm:-left-6 top-6 w-4 sm:w-6 border-b-2 border-dashed transition-colors" style="border-color: ${themeColor}66;"></div>
+                            
+                            <div class="flex items-start gap-3 ${cardBg} p-3 rounded-lg max-w-sm sm:max-w-md w-fit transition-all hover:shadow-md hover:-translate-y-0.5 z-10 relative">
+                                ${icon}
+                                <span class="${textStyle} font-medium break-words leading-tight pt-0.5">${todo.text}</span>
+                            </div>
+                            
+                            ${generateCoolTree(todo.subTodos, level + 1)}
+                        </div>
+                    `;
+                });
+                
+                html += `</div>`;
+                return html;
+            }
+
+            const treeHtml = (topic.todos && topic.todos.length > 0) 
+                ? generateCoolTree(topic.todos) 
+                : `<div class="flex flex-col items-center justify-center text-gray-400 p-12 text-center mt-8">
+                     <i data-lucide="sprout" class="w-16 h-16 mb-4 opacity-50" style="color: ${themeColor}"></i>
+                     <p class="text-xl font-medium text-gray-500 dark:text-gray-400">The tree is just a seed.</p>
+                     <p class="text-base mt-2">Add some tasks to watch it grow!</p>
+                   </div>`;
+
+            root.innerHTML = `
+                <div class="fixed inset-0 bg-black/40 dark:bg-black/70 z-50 flex items-center justify-center transition-opacity duration-200 opacity-100 pointer-events-auto p-4 sm:p-8 backdrop-blur-sm">
+                    <div class="bg-[#fcfcfc] dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden transform transition-all duration-300 scale-100 border border-gray-200 dark:border-gray-800">
+                        
+                        <!-- Header -->
+                        <div class="flex items-center justify-between p-6 sm:px-10 border-b border-gray-100 dark:border-gray-800 shrink-0 bg-white dark:bg-gray-900 relative z-20 shadow-sm">
+                            <div>
+                                <h3 class="text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-3" style="font-family: 'Outfit', sans-serif;">
+                                    <i data-lucide="git-branch" class="w-8 h-8" style="color: ${themeColor}"></i>
+                                    ${treeTitle}
+                                </h3>
+                                <p class="text-base text-gray-500 dark:text-gray-400 mt-2">${treeSubtitle}</p>
+                            </div>
+                            <button onclick="closeTreeModal()" class="w-12 h-12 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-gray-800 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                                <i data-lucide="x" class="w-6 h-6"></i>
+                            </button>
+                        </div>
+
+                        <!-- Tree Body -->
+                        <div class="flex-1 overflow-auto custom-scroll p-6 sm:p-12 relative bg-gray-50 dark:bg-gray-900/50">
+                            <div class="max-w-4xl mx-auto">
+                                <!-- Root Node (Topic) -->
+                                <div class="flex items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-md border-2 w-fit relative z-10 hover:-translate-y-1 transition-transform" style="border-color: ${themeColor};">
+                                    <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background-color: ${themeColor}22;">
+                                        <i data-lucide="folder" class="w-7 h-7" style="color: ${themeColor}"></i>
+                                    </div>
+                                    <span class="text-2xl font-bold text-gray-800 dark:text-white pr-4">${topic.name === `Topic ${topic.id}` ? 'New Topic' : topic.name}</span>
+                                </div>
+                                
+                                <!-- Recursive Tree Container -->
+                                ${treeHtml}
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        function renderHome(container) {
+            const hour = new Date().getHours();
+            let greeting = 'Good evening';
+            if (hour < 12) greeting = 'Good morning';
+            else if (hour < 18) greeting = 'Good afternoon';
+
+            const titleText = appSettings.siriusMode ? 'PRISM' : 'Prism';
+            const greetingText = appSettings.siriusMode ? 'System Operational.' : `${greeting}! ☀️`;
+            const subtitleText = appSettings.siriusMode ? 'Executive overview of your task landscape.' : "Here's the big picture of your brain right now.";
+            const emptyText = appSettings.siriusMode ? 'Insufficient data. Please populate your action items.' : 'Your chart is looking a little shy. Add some to-dos! 🚀';
+
+            container.innerHTML = `
+                <div class="flex-1 flex flex-col items-center justify-center p-8 w-full fade-in overflow-y-auto">
+                    <h1 class="text-6xl sm:text-7xl text-gray-800 dark:text-gray-100 mb-1 text-center transition-colors tracking-tight" style="font-family: 'Outfit', sans-serif;">${titleText}</h1>
+                    <h2 class="text-2xl text-gray-500 dark:text-gray-300 mb-2 text-center transition-colors font-medium">${greetingText}</h2>
+                    <p class="text-gray-400 dark:text-gray-500 mb-10 text-center transition-colors">${subtitleText}</p>
+                    
+                    <div class="w-full max-w-lg bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 relative group transition-colors">
+                        <div class="absolute inset-0 bg-gradient-to-r from-pink-100 via-purple-100 to-blue-100 dark:from-pink-900/30 dark:via-purple-900/30 dark:to-blue-900/30 rounded-2xl opacity-0 group-hover:opacity-50 transition-opacity blur-xl -z-10"></div>
+                        <canvas id="topicChart"></canvas>
+                    </div>
+
+                    <div id="empty-state-msg" class="mt-6 text-gray-400 dark:text-gray-500 hidden text-center transition-colors">
+                        ${emptyText}
+                    </div>
+                </div>
+            `;
+
+            // Prepare Chart Data
+            const labels = topicsData.map(t => `Page ${t.id} (${t.name})`);
+            const data = topicsData.map(t => countTodos(t.todos)); // Count nested tasks!
+            
+            const totalTasks = data.reduce((a, b) => a + b, 0);
+            if (totalTasks === 0) {
+                document.getElementById('empty-state-msg').classList.remove('hidden');
+            }
+
+            const ctx = document.getElementById('topicChart').getContext('2d');
+            
+            if (chartInstance) chartInstance.destroy();
+
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: getChartColors(data.length),
+                        borderWidth: 2,
+                        borderColor: appSettings.darkMode ? '#1f2937' : '#ffffff',
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    cutout: '65%',
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                padding: 20,
+                                color: appSettings.darkMode ? '#e5e7eb' : '#374151',
+                                font: { family: 'Inter', size: 13 }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            padding: 12,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) label += ': ';
+                                    if (context.parsed !== null) {
+                                        label += context.parsed + (context.parsed === 1 ? ' task' : ' tasks');
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderTopicView(container, topicId) {
+            const topic = topicsData.find(t => t.id === topicId);
+            if (!topic) return;
+
+            const finishedTodos = topic.todos.filter(t => t.completed);
+            const activeTodos = topic.todos.filter(t => !t.completed);
+
+            // Get the unique color for this topic based on the pie chart colors
+            const topicIndex = topicsData.findIndex(t => t.id === topicId);
+            const themeColor = baseColors[topicIndex % baseColors.length];
+
+            const doneTitle = appSettings.siriusMode ? 
+                '<i data-lucide="archive" class="w-4 h-4 text-gray-400"></i> Archived Objectives' : 
+                '<i data-lucide="check-circle-2" class="w-4 h-4 text-gray-400"></i> Done & Dusted';
+
+            const doneEmpty = appSettings.siriusMode ? 
+                '<div class="flex-1 flex flex-col items-center justify-center text-gray-400 text-sm italic mt-4 select-none"><i data-lucide="file-minus" class="w-8 h-8 mb-2 opacity-50"></i><p>No finalized objectives.</p></div>' : 
+                '<div class="flex-1 flex flex-col items-center justify-center text-gray-400 text-sm italic mt-4 select-none"><i data-lucide="wind" class="w-8 h-8 mb-2 opacity-50"></i><p>It\'s quiet here...</p></div>';
+
+            const activeEmpty = appSettings.siriusMode ? 
+                `<div class="flex items-center gap-3 text-gray-500 dark:text-gray-400 italic bg-gray-50 dark:bg-gray-800/50 p-6 rounded-lg border border-dashed border-gray-200 dark:border-gray-700 shadow-sm select-none transition-colors">
+                    <i data-lucide="check-square" class="w-6 h-6" style="color: ${themeColor}"></i> 
+                    Optimal efficiency achieved. Awaiting new directives. 👔
+                </div>` : 
+                `<div class="flex items-center gap-3 text-gray-500 dark:text-gray-400 italic bg-gray-50 dark:bg-gray-800/50 p-6 rounded-lg border border-dashed border-gray-200 dark:border-gray-700 shadow-sm select-none transition-colors">
+                    <i data-lucide="sparkles" class="w-6 h-6" style="color: ${themeColor}"></i> 
+                    You're all caught up! Time for a dance break, or add a new task below. 💃
+                </div>`;
+
+            const inputPlaceholder = appSettings.siriusMode ? "Input a new objective..." : "Type a new to-do and press Enter...";
+
+            // Recursive function to render tasks and sub-tasks
+            function renderTree(todos, topicId, themeColor, level = 0) {
+                if (!todos || todos.length === 0) return '';
+                return todos.map(todo => {
+                    const isCompleted = todo.completed;
+                    const textStyle = isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200';
+                    
+                    let content = '';
+                    if (todo.isEditing) {
+                        content = `
+                            <div class="flex items-center gap-3 w-full group/item ${level === 0 ? 'bg-[#f4f4f4] dark:bg-gray-800 p-4 rounded-sm shadow-sm' : 'pl-4 py-2 border-l-2 border-gray-200 dark:border-gray-700 ml-6'}">
+                                <input type="text" id="edit-${todo.id}" 
+                                    class="flex-1 bg-white dark:bg-gray-700 border-2 rounded-md px-3 py-2 outline-none text-gray-700 dark:text-gray-200 font-medium transition-colors"
+                                    style="border-color: ${themeColor};"
+                                    value="${todo.text.replace(/"/g, '&quot;')}"
+                                    placeholder="Task name..."
+                                    onblur="saveTodoText(${topicId}, ${todo.id}, this.value)"
+                                    onkeypress="if(event.key === 'Enter') saveTodoText(${topicId}, ${todo.id}, this.value)">
+                            </div>
+                        `;
+                    } else {
+                        const bgClass = level === 0 ? 'bg-[#f4f4f4] dark:bg-gray-800 p-4 rounded-sm shadow-sm hover:translate-x-1' : 'pl-4 py-2 border-l-2 border-gray-200 dark:border-gray-700 ml-6 hover:border-gray-300 dark:hover:border-gray-600';
+                        content = `
+                            <div class="${bgClass} group flex items-start justify-between transition-all duration-200 select-none w-full"
+                                 style="--hover-bg: ${themeColor}22;"
+                                 onmouseover="${level === 0 ? "this.style.backgroundColor='var(--hover-bg)'" : ""}"
+                                 onmouseout="${level === 0 ? "this.style.backgroundColor=''" : ""}">
+                                <div class="flex items-start gap-4 flex-1">
+                                    <button onclick="toggleTodo(${topicId}, ${todo.id})" 
+                                            class="w-6 h-6 mt-0.5 rounded-full ${isCompleted ? 'bg-gray-400 dark:bg-gray-500' : 'bg-gray-300 dark:bg-gray-600'} group-hover:scale-110 transition-all shadow-inner flex-shrink-0 flex items-center justify-center overflow-hidden relative"
+                                            style="${!isCompleted ? `--hover-check: ${themeColor};` : ''} background-color: ${isCompleted ? themeColor : ''};"
+                                            onmouseover="if(!${isCompleted}) this.style.backgroundColor='var(--hover-check)'"
+                                            onmouseout="if(!${isCompleted}) this.style.backgroundColor=''">
+                                        ${isCompleted ? `<i data-lucide="check" class="w-4 h-4 text-white drop-shadow-sm"></i>` : ''}
+                                    </button>
+                                    <span class="${textStyle} text-lg group-hover:text-gray-900 dark:group-hover:text-white transition-colors break-words flex-1 leading-snug font-medium pt-0.5">${todo.text}</span>
+                                </div>
+                                <div class="flex items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity gap-1 ml-2 flex-shrink-0">
+                                    <button onclick="addSubTask(${topicId}, ${todo.id})" 
+                                            class="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-1.5 rounded transition-colors" title="Add Sub-task">
+                                        <i data-lucide="corner-down-right" class="w-5 h-5"></i>
+                                    </button>
+                                    <button onclick="deleteTodo(${topicId}, ${todo.id})" 
+                                            class="text-gray-400 dark:text-gray-500 hover:text-red-400 p-1.5 rounded transition-colors" title="Delete">
+                                        <i data-lucide="x" class="w-5 h-5"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    const children = renderTree(todo.subTodos, topicId, themeColor, level + 1);
+                    
+                    return `
+                        <div class="flex flex-col w-full mb-1">
+                            ${content}
+                            <div class="w-full">
+                                ${children}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Create two main columns to match the mockup
+            container.innerHTML = `
+                <!-- Left Column: Finished To-Dos (Matches gray box in mockup) -->
+                <div class="w-full md:w-1/3 lg:w-1/4 bg-white dark:bg-gray-900 p-4 sm:p-8 flex flex-col border-r border-gray-100 dark:border-gray-800 fade-in h-1/2 md:h-full transition-colors">
+                    <div class="bg-[#f2f2f2] dark:bg-gray-800/50 rounded-md h-full flex flex-col overflow-hidden shadow-inner dark:shadow-black/20 p-4 sm:p-6 pb-2 relative transition-colors">
+                        <h2 class="text-base text-gray-500 dark:text-gray-400 font-medium text-center mb-4 flex items-center justify-center gap-2">
+                            ${doneTitle}
+                        </h2>
+                        <div class="flex-1 overflow-y-auto custom-scroll pr-2 flex flex-col gap-3">
+                            ${finishedTodos.length === 0 ? 
+                                doneEmpty : 
+                                finishedTodos.map(todo => `
+                                    <div class="bg-[#c2c2c2] dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-semibold py-2.5 px-4 text-center rounded-sm text-sm truncate opacity-80 hover:opacity-100 cursor-pointer transition-all hover:scale-[1.02] select-none" 
+                                         onclick="toggleTodo(${topic.id}, ${todo.id})" title="Click to undo">
+                                        ${todo.text}
+                                    </div>
+                                `).join('')
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Active To-Dos -->
+                <div class="flex-1 p-8 md:p-12 lg:p-16 flex flex-col bg-white dark:bg-gray-900 fade-in overflow-y-auto custom-scroll h-1/2 md:h-full relative transition-colors">
+                    
+                    <!-- Editable Topic Title and Delete Button -->
+                    <div class="flex items-center justify-between mb-12 gap-4 group/title">
+                        <input type="text" 
+                               value="${topic.name === `Topic ${topic.id}` ? 'Topic' : topic.name}" 
+                               onchange="updateTopicName(${topic.id}, this.value)"
+                               style="border-bottom: 4px solid transparent; transition: border-color 0.3s;"
+                               onfocus="this.style.borderColor='${themeColor}'"
+                               onblur="this.style.borderColor='transparent'"
+                               class="text-6xl sm:text-7xl lg:text-8xl text-[#5a5a5a] dark:text-gray-100 font-normal bg-transparent outline-none hover:bg-gray-50 dark:hover:bg-gray-800/50 focus:bg-gray-50 dark:focus:bg-gray-800/50 rounded-t-lg -ml-4 px-4 py-2 w-full transition-colors" 
+                               placeholder="Name this topic...">
+                        
+                        <div class="flex items-center gap-2">
+                            <button onclick="openTreeModal(${topic.id})" class="text-gray-300 dark:text-gray-600 hover:text-blue-500 p-3 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-full transition-colors flex-shrink-0 opacity-0 group-hover/title:opacity-100 focus:opacity-100" title="View Tree History">
+                                <i data-lucide="git-branch" class="w-8 h-8 sm:w-10 sm:h-10"></i>
+                            </button>
+                            <button onclick="deleteTopic(${topic.id})" class="text-gray-300 dark:text-gray-600 hover:text-red-500 p-3 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-full transition-colors flex-shrink-0 opacity-0 group-hover/title:opacity-100 focus:opacity-100" title="Delete Topic">
+                                <i data-lucide="trash-2" class="w-8 h-8 sm:w-10 sm:h-10"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-3 max-w-3xl w-full">
+                        ${activeTodos.length === 0 ? 
+                            activeEmpty : 
+                            renderTree(activeTodos, topic.id, themeColor)
+                        }
+                        
+                        <!-- Add New Todo Input -->
+                        <div class="mt-4 flex items-center bg-white dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-700 p-1 rounded-md transition-colors max-w-3xl group/input"
+                             style="--focus-border: ${themeColor};"
+                             onfocusin="this.style.borderColor='var(--focus-border)'"
+                             onfocusout="this.style.borderColor=''">
+                            <input type="text" id="new-todo-input" 
+                                   placeholder="${inputPlaceholder}" 
+                                   class="w-full bg-transparent px-4 py-3 outline-none text-gray-700 dark:text-gray-200"
+                                   onkeypress="handleKeyPress(event, ${topic.id})">
+                            <button onclick="addTodoFromInput(${topic.id})" 
+                                    class="p-3 text-gray-400 dark:text-gray-500 hover:text-white transition-colors rounded-md"
+                                    style="--btn-hover: ${themeColor};"
+                                    onmouseover="this.style.backgroundColor='var(--btn-hover)'; this.style.color='white';"
+                                    onmouseout="this.style.backgroundColor='transparent'; this.style.color='';">
+                                <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Focus input if requested
+            setTimeout(() => {
+                if (window.shouldFocusEditId) {
+                    const input = document.getElementById('edit-' + window.shouldFocusEditId);
+                    if (input) {
+                        input.focus();
+                        window.shouldFocusEditId = null;
+                    }
+                } else {
+                    const input = document.getElementById('new-todo-input');
+                    if(input && window.shouldFocusInput) {
+                        input.focus();
+                        window.shouldFocusInput = false;
+                    }
+                }
+            }, 50);
+        }
+
+        // --- Actions ---
+
+        function addTopic() {
+            const newId = topicsData.length > 0 ? Math.max(...topicsData.map(t => t.id)) + 1 : 1;
+            topicsData.push({ id: newId, name: `Topic ${newId}`, todos: [] });
+            activeTopicId = newId; // switch to the new topic
+            renderApp();
+        }
+
+        function deleteTopic(topicId) {
+            topicsData = topicsData.filter(t => t.id !== topicId);
+            activeTopicId = null; // Go back to home dashboard after deleting
+            renderApp();
+        }
+
+        function goHome() {
+            activeTopicId = null;
+            renderApp();
+        }
+
+        function switchTopic(id) {
+            activeTopicId = id;
+            renderApp();
+        }
+
+        function updateTopicName(topicId, newName) {
+            const topic = topicsData.find(t => t.id === topicId);
+            if (topic) {
+                topic.name = newName.trim() || `Topic ${topicId}`;
+                // Render just sidebar to update tooltip/names if needed, 
+                // but title in view updates automatically next render
+            }
+        }
+
+        function toggleTodo(topicId, todoId) {
+            const topic = topicsData.find(t => t.id === topicId);
+            const todo = findTodo(topic.todos, todoId);
+            if (todo) {
+                todo.completed = !todo.completed;
+                
+                // Add confetti if completing a task!
+                if (todo.completed) {
+                    if (appSettings.confetti) {
+                        const topicIndex = topicsData.findIndex(t => t.id === topicId);
+                        const themeColor = baseColors[topicIndex % baseColors.length];
+                        
+                        confetti({
+                            particleCount: 60,
+                            spread: 70,
+                            origin: { y: 0.7, x: 0.6 },
+                            colors: [themeColor, '#ffffff', '#e5e7eb'],
+                            disableForReducedMotion: true
+                        });
+                    }
+                }
+
+                renderApp();
+            }
+        }
+
+        function deleteTodo(topicId, todoId) {
+            const topic = topicsData.find(t => t.id === topicId);
+            topic.todos = removeTodo(topic.todos, todoId);
+            renderApp();
+        }
+
+        function addSubTask(topicId, parentId) {
+            const topic = topicsData.find(t => t.id === topicId);
+            const parent = findTodo(topic.todos, parentId);
+            if (parent) {
+                if (!parent.subTodos) parent.subTodos = [];
+                const newId = Date.now(); // Safe, unique ID
+                parent.subTodos.push({ id: newId, text: '', completed: false, isEditing: true, subTodos: [] });
+                window.shouldFocusEditId = newId; // Set focus mapping
+                renderApp();
+            }
+        }
+
+        function saveTodoText(topicId, todoId, text) {
+            const topic = topicsData.find(t => t.id === topicId);
+            const todo = findTodo(topic.todos, todoId);
+            if (todo) {
+                if (text.trim() === '') {
+                    // Delete completely if left empty
+                    topic.todos = removeTodo(topic.todos, todoId);
+                } else {
+                    todo.text = text.trim();
+                    todo.isEditing = false;
+                }
+                renderApp();
+            }
+        }
+
+        function handleKeyPress(event, topicId) {
+            if (event.key === 'Enter') {
+                addTodoFromInput(topicId);
+            }
+        }
+
+        function addTodoFromInput(topicId) {
+            const input = document.getElementById('new-todo-input');
+            const text = input.value.trim();
+            if (text) {
+                const topic = topicsData.find(t => t.id === topicId);
+                const newId = Date.now();
+                topic.todos.push({ id: newId, text: text, completed: false, subTodos: [] });
+                window.shouldFocusInput = true; // Keep focus after adding
+                renderApp();
+            }
+        }
+
+        function toggleSettings() {
+            showSettings = !showSettings;
+            renderSettingsModal();
+        }
+
+        function toggleSetting(key) {
+            appSettings[key] = !appSettings[key];
+            if (key === 'darkMode') {
+                if (appSettings.darkMode) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            }
+            renderApp(); // re-renders everything including chart text colors and sirius mode strings
+        }
+
+        // --- Initialization ---
+        window.onload = () => {
+            renderApp();
+        };
+
+    </script>
+</body>
+</html>
