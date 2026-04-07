@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mind Map & Planner</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mind Map">
+    <link rel="apple-touch-icon" href="https://api.dicebear.com/9.x/shapes/png?seed=MindMap&backgroundColor=34d399">
+    
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2334d399'/><circle cx='30' cy='50' r='10' fill='white'/><circle cx='70' cy='30' r='10' fill='white'/><circle cx='70' cy='70' r='10' fill='white'/><path d='M30 50 L70 30 M30 50 L70 70' stroke='white' stroke-width='8' stroke-linecap='round'/></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -79,7 +85,6 @@
 </head>
 <body class="bg-slate-50 dark:bg-zinc-900 text-slate-700 dark:text-gray-300 selection:bg-emerald-400 selection:text-white relative transition-colors duration-300">
 
-    <!-- Pop-up Notes Modal -->
     <div id="notes-modal" class="fixed inset-0 z-[200] hidden bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-4 transition-opacity" onclick="if(event.target.id === 'notes-modal') closeNotesModal()">
         <div class="bg-white dark:bg-zinc-800 w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-700 flex flex-col h-[70vh] max-h-[600px] animate-[slideIn_0.2s_ease-out]">
             <div class="p-4 border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center bg-slate-50 dark:bg-zinc-800/80 rounded-t-2xl">
@@ -97,22 +102,18 @@
         </div>
     </div>
 
-    <!-- Giant Mobile Add Button -->
     <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 md:hidden pointer-events-auto">
         <button onclick="addCardFromCenter()" class="bg-emerald-500 hover:bg-emerald-600 text-white shadow-[0_8px_30px_rgb(52,211,153,0.3)] rounded-full w-14 h-14 flex items-center justify-center transition-transform active:scale-95" title="Add new topic">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
         </button>
     </div>
 
-    <!-- UI Controls (Right side, Tools + Zoom) -->
     <div class="fixed bottom-6 right-6 z-50 pointer-events-auto">
         <div class="flex flex-col gap-1 items-center bg-white/80 dark:bg-zinc-800/80 backdrop-blur-sm shadow-md border border-slate-200 dark:border-zinc-700 rounded-full p-2 relative">
             
-            <!-- Settings Panel (Floating above) -->
             <div id="settings-panel" class="absolute bottom-full mb-4 right-0 flex flex-col gap-2 bg-white/95 dark:bg-zinc-800/95 backdrop-blur-md p-3 rounded-2xl shadow-xl border border-slate-200 dark:border-zinc-700 transition-all duration-200 opacity-0 scale-95 origin-bottom-right pointer-events-none">
                 <div class="text-[10px] font-bold text-slate-400 dark:text-zinc-500 mb-1 px-1 tracking-wider uppercase text-center">Settings</div>
                 
-                <!-- Data Export/Import -->
                 <div class="flex gap-2">
                     <label class="w-10 h-10 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 rounded-full flex items-center justify-center text-slate-600 dark:text-gray-300 hover:text-emerald-500 cursor-pointer transition-colors" title="Import Data">
                         <input type="file" accept=".json" class="hidden" onchange="importData(event)">
@@ -125,7 +126,6 @@
                 
                 <div class="h-px bg-slate-200 dark:bg-zinc-700 w-full my-1"></div>
                 
-                <!-- Snap to Grid & Dark Mode -->
                 <div class="flex gap-2">
                     <button id="snap-btn" onclick="toggleSnapToGrid()" class="w-10 h-10 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 rounded-full flex items-center justify-center text-slate-500 dark:text-gray-400 transition-colors" title="Toggle Snap to Grid">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
@@ -137,14 +137,12 @@
                 </div>
             </div>
 
-            <!-- Settings Toggle Button -->
             <button onclick="toggleSettings()" id="settings-toggle-btn" class="w-10 h-10 rounded-full flex items-center justify-center text-slate-500 dark:text-gray-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors" title="Settings">
                 <svg class="w-5 h-5 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
             </button>
 
             <div class="h-px bg-slate-300 dark:bg-zinc-700 w-full my-1"></div>
 
-            <!-- Recenter Button -->
             <button onclick="centerOnCards()" class="w-10 h-10 rounded-full flex items-center justify-center text-slate-500 dark:text-gray-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors" title="Recenter on Cards">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="3"></circle>
@@ -155,7 +153,6 @@
                 </svg>
             </button>
             
-            <!-- Zoom Controls -->
             <button onclick="changeZoom(0.1)" class="w-10 h-10 rounded-full flex items-center justify-center text-slate-500 dark:text-gray-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors" title="Zoom In">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
             </button>
@@ -168,7 +165,6 @@
         </div>
     </div>
 
-    <!-- The Pan/Zoom Board Area -->
     <div id="board-container" class="w-full h-full board-bg relative overflow-hidden" ondblclick="handleBoardDoubleClick(event)">
         <div id="zoom-layer" class="absolute inset-0 w-full h-full origin-top-left pointer-events-none" style="transform: translate(0px, 0px) scale(1);">
             <svg id="lines-layer" class="absolute pointer-events-none z-0" style="overflow: visible; width: 1px; height: 1px;"></svg>
@@ -397,7 +393,6 @@
                 cardEl.innerHTML = `
                     <div class="card-header ${theme.bg} border-b ${theme.border} p-2.5 flex items-center gap-1.5" onmousedown="startDrag(event, '${card.id}')" ontouchstart="startDrag(event, '${card.id}')">
                         
-                        <!-- Drag Handle -->
                         <div class="cursor-grab text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 p-0.5 flex-shrink-0" title="Drag to move">
                             <svg class="w-4 h-4 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>
                         </div>
@@ -418,7 +413,6 @@
                         </div>
                     </div>
 
-                    <!-- Toolbar -->
                     <div class="flex items-center gap-1 px-2 py-1 bg-slate-50/50 dark:bg-zinc-800/30 border-b border-slate-100 dark:border-zinc-700/50" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">
                         <button onclick="openNotesModal('${card.id}')" class="text-[11px] px-2 py-1 rounded transition-colors ${notesBtnClass}" title="Edit Notes">📝 Notes</button>
                         <div class="flex-1"></div>
@@ -427,7 +421,6 @@
                         </button>
                     </div>
 
-                    <!-- Sub-Card Input -->
                     <div class="p-2.5 bg-white/50 dark:bg-zinc-800/50">
                         <form onsubmit="addSubCard(event, '${card.id}')" class="flex gap-1">
                             <input type="text" placeholder="Add connected task..." class="flex-1 text-xs bg-slate-50 dark:bg-zinc-900/80 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-gray-200 rounded px-2 py-1.5 focus:outline-none focus:border-emerald-400 transition-colors" required onclick="event.stopPropagation()" ontouchstart="event.stopPropagation()">
@@ -437,9 +430,7 @@
                         </form>
                     </div>
 
-                    <!-- Connection Handle Container (Larger Hitbox) -->
                     <div class="absolute -bottom-4 -right-4 w-12 h-12 flex items-center justify-center cursor-crosshair z-20" onmousedown="startConnecting(event, '${card.id}')" ontouchstart="startConnecting(event, '${card.id}')" title="Drag to connect">
-                        <!-- Visual dot -->
                         <div class="w-5 h-5 bg-white dark:bg-zinc-800 rounded-full flex items-center justify-center shadow-sm border border-slate-200 dark:border-zinc-600 pointer-events-none transition-transform hover:scale-110">
                             <div class="w-2.5 h-2.5 ${theme.handle} rounded-full pointer-events-none"></div>
                         </div>
@@ -471,7 +462,6 @@
                     const end = getCardCenter(toCard);
                     svgHTML += `
                         <g class="group cursor-pointer pointer-events-auto" onclick="deleteConnection(${index})">
-                            <!-- Massive invisible line for easy tapping/clicking -->
                             <line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" stroke="transparent" stroke-width="30" />
                             <line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" stroke="${lineStroke}" stroke-width="3" stroke-dasharray="6 4" class="group-hover:stroke-rose-400 transition-colors" />
                             <circle cx="${end.x}" cy="${end.y}" r="4" fill="${lineStroke}" class="group-hover:fill-rose-400 transition-colors" />
