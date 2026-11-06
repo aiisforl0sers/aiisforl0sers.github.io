@@ -2,7 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Updated viewport for mobile apps: prevents zooming and supports notches (viewport-fit=cover) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- iOS / Android Native App Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F9F8F1">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1a18">
+
     <title>Minimal Weather & Time</title>
     
     <!-- Google Fonts for rounded style -->
@@ -16,6 +25,10 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         /* Custom styling to match the screenshot's specific colors and typography */
+        html {
+            height: -webkit-fill-available; /* Fixes height issues on mobile Safari */
+        }
+        
         body {
             background-color: #F9F8F1; /* Off-white/cream background */
             color: #4A4A45; /* Dark brownish-gray text */
@@ -23,6 +36,19 @@
             margin: 0;
             overflow: hidden;
             user-select: none;
+            
+            /* Native app feel additions */
+            overscroll-behavior: none; /* Prevents pull-to-refresh bounce */
+            touch-action: manipulation; /* Disables double-tap to zoom */
+            -webkit-tap-highlight-color: transparent; /* Removes blue tap highlight */
+            
+            /* Safe area padding for notches and home bars */
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
         }
 
         .time-display {
@@ -75,9 +101,14 @@
         .animate-float {
             animation: float 6s ease-in-out infinite;
         }
+
+        /* Adjust status message to respect mobile bottom safe area */
+        #status-message {
+            bottom: calc(1rem + env(safe-area-inset-bottom));
+        }
     </style>
 </head>
-<body class="h-screen w-full flex flex-col items-center justify-center">
+<body class="w-full flex flex-col items-center justify-center">
 
     <!-- Main Container -->
     <div class="flex flex-col items-center transition-opacity duration-1000" id="app-container">
@@ -295,6 +326,8 @@
 
         // --- Geolocation Logic ---
         function initApp() {
+            generateAppIcon(); // Setup the Home Screen Icon
+            
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
@@ -313,6 +346,60 @@
                 console.warn("Geolocation not supported, using default location.");
                 fetchWeather(40.7091, -112.0983);
             }
+        }
+
+        // --- Generate iOS / Android Home Screen Icon ---
+        function generateAppIcon() {
+            // SVG of the tree with green leaves and a soft yellow background
+            const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512">
+                <rect width="100" height="100" fill="#fef6cd"/> <!-- Soft yellow background -->
+                <!-- Tree Trunk -->
+                <path d="M50 95 L50 45 M50 65 L35 50 M50 55 L65 40" stroke="#4a4a45" stroke-width="6" stroke-linecap="round" fill="none"/>
+                <!-- Green Leaves -->
+                <g stroke-width="5" stroke="#6d8262" fill="none">
+                    <circle cx="50" cy="30" r="18" />
+                    <circle cx="32" cy="45" r="14" />
+                    <circle cx="68" cy="45" r="14" />
+                    <circle cx="50" cy="15" r="12" />
+                </g>
+            </svg>`;
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            // Create a temporary URL for the SVG string
+            const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+            
+            img.onload = function() {
+                // Draw the SVG to the canvas and convert to PNG
+                ctx.drawImage(img, 0, 0);
+                const pngDataUrl = canvas.toDataURL('image/png');
+                
+                // Set as Apple Touch Icon
+                let appleLink = document.querySelector('link[rel="apple-touch-icon"]');
+                if (!appleLink) {
+                    appleLink = document.createElement('link');
+                    appleLink.rel = 'apple-touch-icon';
+                    document.head.appendChild(appleLink);
+                }
+                appleLink.href = pngDataUrl;
+                
+                // Set as standard browser tab icon
+                let favicon = document.querySelector('link[rel="icon"]');
+                if (!favicon) {
+                    favicon = document.createElement('link');
+                    favicon.rel = 'icon';
+                    document.head.appendChild(favicon);
+                }
+                favicon.href = pngDataUrl;
+                
+                URL.revokeObjectURL(url); // Clean up memory
+            };
+            img.src = url;
         }
 
         // Start app
