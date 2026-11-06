@@ -2,760 +2,701 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Updated viewport for mobile apps: prevents zooming and supports notches (viewport-fit=cover) -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
+    <!-- iOS / Android Native App Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F9F8F1">
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1a18">
 
-    <title>Widget Dashboard Fixed</title>
+    <title>Minimal Weather & Time</title>
     
+    <!-- Google Fonts for rounded style -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet">
-    
-    <!-- Polyfill for Mobile HTML5 Drag and Drop -->
-    <link rel="stylesheet" href="https://unpkg.com/mobile-drag-drop@3.0.0-rc.0/default.css">
 
+    <!-- Tailwind CSS for layout and styling -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons for the specific line-art style seen in the screenshot -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <script src="https://unpkg.com/mobile-drag-drop@3.0.0-rc.0/index.min.js"></script>
-
     <style>
-        html { height: -webkit-fill-available; }
+        /* Custom styling to match the screenshot's specific colors and typography */
+        html {
+            height: -webkit-fill-available; /* Fixes height issues on mobile Safari */
+        }
         
         body {
-            background-color: #F9F8F1;
-            color: #4A4A45;
-            font-family: 'Varela Round', ui-rounded, sans-serif;
+            background-color: #F9F8F1; /* Off-white/cream background */
+            color: #4A4A45; /* Dark brownish-gray text */
+            font-family: 'Varela Round', ui-rounded, sans-serif; /* Rounded font */
             margin: 0;
-            overflow-x: hidden;
+            overflow: hidden;
             user-select: none;
-            overscroll-behavior: none;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
+            
+            /* Native app feel additions */
+            overscroll-behavior: none; /* Prevents pull-to-refresh bounce */
+            touch-action: manipulation; /* Disables double-tap to zoom */
+            -webkit-tap-highlight-color: transparent; /* Removes blue tap highlight */
+            
+            /* Safe area padding for notches and home bars */
             padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
             padding-left: env(safe-area-inset-left);
             padding-right: env(safe-area-inset-right);
             min-height: 100vh;
             min-height: -webkit-fill-available;
-            transition: background-color 1s ease, color 1s ease;
         }
 
-        body.dark-mode {
-            background-color: #1a1a18;
-            color: #eae8d9;
+        .time-display {
+            font-size: 4rem; /* Reduced from 5.5rem */
+            letter-spacing: 0.15em;
+            font-weight: 600;
         }
 
-        /* Grid System - Fixed Gaps with dense flow */
-        #widget-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-            grid-auto-flow: dense;
-            gap: 1.5rem;
-            padding: 2rem;
-            width: 100%;
-            max-width: 800px;
-            margin: 0 auto;
+        @media (min-width: 640px) {
+            .time-display {
+                font-size: 6rem; /* Reduced from 8rem */
+            }
         }
 
-        /* Widget Containers */
-        .widget-card {
-            background: transparent;
-            border-radius: 1.5rem;
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            box-shadow: none;
-            transition: opacity 0.3s, transform 0.2s;
+        /* Subtle pulse for loading state */
+        .loading {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
 
-        /* Prevent browser from dragging inner elements (like SVGs or Text) by mistake */
-        .widget-card * {
-            -webkit-user-drag: none;
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
         }
 
-        body.dark-mode .widget-card {
-            background: transparent;
-            box-shadow: none;
-        }
-
-        /* Widget Sizes */
-        .size-small { grid-column: span 1; grid-row: span 1; aspect-ratio: 1 / 1; }
-        .size-medium { grid-column: span 2; grid-row: span 1; aspect-ratio: 2 / 1; }
-        .size-large { grid-column: span 2; grid-row: span 2; aspect-ratio: 1 / 1; }
-
-        @media (max-width: 400px) {
-            .size-medium, .size-large { grid-column: span 1; aspect-ratio: 1/1; }
-        }
-
-        body.editing .widget-card {
-            background: rgba(0, 0, 0, 0.05);
-            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
-            cursor: grab;
-            -webkit-user-drag: element;
-            touch-action: none;
-        }
-        body.dark-mode.editing .widget-card {
-            background: rgba(255, 255, 255, 0.05);
-            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
-        }
-        body.editing .widget-card:active {
-            cursor: grabbing;
-        }
-
-        /* Delete Button (Only visible in edit mode) */
-        .delete-btn {
-            position: absolute;
-            top: -10px;
-            left: -10px;
-            background: rgba(150, 150, 150, 0.3);
-            backdrop-filter: blur(5px);
-            border-radius: 50%;
-            width: 28px;
-            height: 28px;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 10;
-        }
-        .resize-btn {
-            position: absolute;
-            bottom: -10px;
-            right: -10px;
-            background: rgba(150, 150, 150, 0.3);
-            backdrop-filter: blur(5px);
-            border-radius: 50%;
-            width: 28px;
-            height: 28px;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 10;
-        }
-        body.editing .delete-btn, body.editing .resize-btn {
-            display: flex;
+        /* --- New Features Styles --- */
+        body {
+            transition: background-color 2s ease, color 2s ease;
         }
         
-        /* Fly-in Animation */
-        @keyframes flyInFromBottom {
-            0% { transform: translateY(40vh) scale(0.5); opacity: 0; }
-            100% { transform: translateY(0) scale(1); opacity: 1; }
-        }
-        .fly-in {
-            animation: flyInFromBottom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+        body.dark-mode {
+            background-color: #1a1a18; /* Dark charcoal */
+            color: #eae8d9; /* Off-white text */
         }
 
-        /* Bottom Sheet Carousel */
-        #carousel-modal {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: rgba(249, 248, 241, 0.9);
-            backdrop-filter: blur(15px);
-            border-top-left-radius: 2rem;
-            border-top-right-radius: 2rem;
-            padding: 2rem 1rem env(safe-area-inset-bottom) 1rem;
-            transform: translateY(100%);
-            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            z-index: 50;
-            box-shadow: 0 -10px 40px rgba(0,0,0,0.1);
+        /* Gentle swaying for the tree */
+        @keyframes sway {
+            0%, 100% { transform: rotate(-1deg); }
+            50% { transform: rotate(2deg); }
         }
-        body.dark-mode #carousel-modal {
-            background: rgba(26, 26, 24, 0.9);
-            box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+        .animate-sway {
+            animation: sway var(--sway-duration, 5s) ease-in-out infinite;
+            transform-origin: bottom center;
         }
-        #carousel-modal.open {
-            transform: translateY(0);
+        
+        /* Slow float for the weather icon */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-4px); }
+        }
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
         }
 
-        .carousel-track {
-            display: flex;
-            gap: 1rem;
-            overflow-x: auto;
-            padding-bottom: 1rem;
-            scroll-snap-type: x mandatory;
-        }
-        .carousel-item {
-            flex: 0 0 120px;
-            scroll-snap-align: start;
-            cursor: pointer;
+        /* Adjust status message to respect mobile bottom safe area */
+        #status-message {
+            bottom: calc(1rem + env(safe-area-inset-bottom));
         }
 
-        /* UI Overlays */
-        #edit-controls {
-            position: fixed;
-            top: env(safe-area-inset-top);
-            left: 0;
-            width: 100%;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            pointer-events: none;
-            z-index: 40;
-            opacity: 0;
-            transition: opacity 0.3s;
+        /* Ambient Stars Animation */
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.15; transform: scale(0.8); }
+            50% { opacity: 0.85; transform: scale(1.2); }
         }
-        body.editing #edit-controls {
+        .star {
+            position: absolute;
+            background-color: #eae8d9;
+            border-radius: 50%;
+            animation: twinkle var(--duration, 3s) ease-in-out infinite var(--delay, 0s);
+        }
+        body.dark-mode #star-container {
             opacity: 1;
         }
-        
-        body.editing #edit-controls .btn-ui {
-            pointer-events: auto;
+
+        /* Soft time-of-day color shifts */
+        body.dawn-mode { background-color: #FAF2EB; color: #4E443F; }
+        body.dusk-mode { background-color: #F7EFE6; color: #4A423D; }
+        body.dark-mode.night-mode { background-color: #141416; color: #eae8d9; }
+        body.dark-mode.dusk-mode { background-color: #1c1822; color: #eae8d9; }
+
+        /* Apple Liquid Glass Effect */
+        .liquid-glass {
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.55);
+            box-shadow: 
+                inset 0 1px 1px 0 rgba(255, 255, 255, 0.7),
+                inset 0 -1px 1px 0 rgba(0, 0, 0, 0.05),
+                0 20px 40px -15px rgba(0, 0, 0, 0.12);
         }
 
-        .btn-ui {
-            background: rgba(120, 120, 120, 0.2);
-            padding: 0.5rem 1.2rem;
-            border-radius: 2rem;
-            font-weight: 600;
-            cursor: pointer;
-            backdrop-filter: blur(5px);
+        body.dark-mode .liquid-glass {
+            background: rgba(30, 30, 35, 0.55);
+            backdrop-filter: blur(24px) saturate(190%);
+            -webkit-backdrop-filter: blur(24px) saturate(190%);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 
+                inset 0 1px 1px 0 rgba(255, 255, 255, 0.25),
+                inset 0 -1px 1px 0 rgba(0, 0, 0, 0.4),
+                0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
-        .time-text { font-size: 3.5rem; letter-spacing: 0.1em; line-height: 1; }
-        .date-text { font-size: 0.8rem; letter-spacing: 0.2em; text-align: center; }
-        
-        .loading { animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-        
-        @keyframes sway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
-        .animate-sway { animation: sway 5s ease-in-out infinite; transform-origin: bottom center; }
+        .liquid-glass-subtle {
+            background: rgba(255, 255, 255, 0.35);
+            backdrop-filter: blur(14px) saturate(160%);
+            -webkit-backdrop-filter: blur(14px) saturate(160%);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: inset 0 1px 0.5px rgba(255, 255, 255, 0.6);
+        }
 
+        body.dark-mode .liquid-glass-subtle {
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(14px) saturate(160%);
+            -webkit-backdrop-filter: blur(14px) saturate(160%);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: inset 0 1px 0.5px rgba(255, 255, 255, 0.15);
+        }
+
+        .liquid-glass-button {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.3));
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.65);
+            box-shadow: 
+                inset 0 1px 1px rgba(255, 255, 255, 0.85),
+                0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .liquid-glass-button:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.45));
+            transform: translateY(-1px);
+            box-shadow: 
+                inset 0 1px 1px rgba(255, 255, 255, 0.95),
+                0 6px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .liquid-glass-button:active {
+            transform: translateY(0.5px) scale(0.98);
+        }
+
+        body.dark-mode .liquid-glass-button {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 
+                inset 0 1px 1px rgba(255, 255, 255, 0.3),
+                0 4px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        body.dark-mode .liquid-glass-button:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.1));
+            box-shadow: 
+                inset 0 1px 1px rgba(255, 255, 255, 0.4),
+                0 6px 20px rgba(0, 0, 0, 0.4);
+        }
     </style>
 </head>
-<body>
+<body class="w-full flex flex-col items-center justify-center relative">
 
-    <!-- Toast Notification -->
-    <div id="toast" class="fixed top-24 left-1/2 transform -translate-x-1/2 bg-red-500/90 backdrop-blur-md text-[#F9F8F1] px-6 py-3 rounded-full opacity-0 pointer-events-none transition-opacity duration-300 z-50 font-bold tracking-widest text-sm shadow-xl">
-        GRID IS FULL
-    </div>
+    <!-- Starry background layer for night (upper half only) -->
+    <div id="star-container" class="fixed top-0 left-0 right-0 h-1/2 pointer-events-none opacity-0 transition-opacity duration-1000 z-0"></div>
 
-    <!-- Global Instructions / Empty State -->
-    <div id="empty-state" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 transition-opacity">
-        <p class="tracking-widest text-sm">HOLD TO EDIT</p>
-    </div>
-
-    <!-- Edit Mode Controls -->
-    <div id="edit-controls">
-        <div class="btn-ui flex items-center justify-center text-xl w-10 h-10 p-0 rounded-full" onclick="toggleCarousel()">+</div>
-        <div class="btn-ui" onclick="exitEditMode()">Done</div>
-    </div>
-
-    <!-- The Grid where widgets live -->
-    <div id="widget-grid" ondragenter="dragEnter(event)" ondragover="dragOver(event)" ondrop="gridDrop(event)"></div>
-
-    <!-- Carousel Modal -->
-    <div id="carousel-modal">
-        <div class="flex justify-between items-center mb-4 px-2">
-            <h3 class="font-bold tracking-widest text-sm">ADD WIDGET</h3>
-            <i class="ph ph-x text-xl cursor-pointer" onclick="toggleCarousel()"></i>
+    <!-- Main Container -->
+    <div class="flex flex-col items-center transition-opacity duration-1000 z-10" id="app-container">
+        
+        <!-- Location Display & Air Quality Indicator -->
+        <div class="flex items-center gap-2 mb-2 px-3.5 py-1 rounded-full liquid-glass-subtle">
+            <div class="text-[0.65rem] sm:text-xs tracking-[0.35em] font-medium opacity-70 uppercase" id="location-display">
+                LOCATING...
+            </div>
+            <div id="aqi-dot" class="w-2 h-2 rounded-full bg-emerald-500 opacity-0 transition-opacity duration-500" title="Air Quality"></div>
         </div>
-        <div class="carousel-track">
-            <!-- Carousel items generated by JS -->
+
+        <!-- Date & Moon Phase Display -->
+        <div class="flex items-center gap-2 text-xs sm:text-sm tracking-[0.3em] font-medium opacity-60 mb-2 sm:mb-4 whitespace-nowrap">
+            <span id="date-display">-- , -- --</span>
+            <span id="moon-phase" class="hidden text-[0.65rem] tracking-widest opacity-80 border-l border-current pl-2"></span>
         </div>
+
+        <!-- Time Display -->
+        <div class="time-display flex items-center justify-center whitespace-nowrap" id="time">
+            -- : --
+        </div>
+
+        <!-- Weather Display (Clickable for expanded details with Liquid Glass Pill effect) -->
+        <div class="flex items-center gap-6 sm:gap-8 mt-3 sm:mt-5 px-6 py-3 rounded-3xl liquid-glass-subtle cursor-pointer group hover:scale-[1.03] transition-all duration-300" onclick="toggleWeatherModal()" title="Click for weather details">
+            <!-- Dynamic Weather Icon with ambient float -->
+            <i class="ph ph-cloud-sun loading transition-all duration-500 animate-float text-4xl sm:text-5xl" id="weather-icon"></i>
+            
+            <!-- Temperature (Interactive Details / Toggle) -->
+            <div class="flex flex-col items-center">
+                <div class="flex items-center gap-1 sm:gap-2 group-hover:scale-105 transition-transform">
+                    <i class="ph ph-thermometer text-3xl sm:text-5xl"></i>
+                    <span id="temperature" class="font-bold tracking-wider loading text-4xl sm:text-5xl">--&deg;</span>
+                </div>
+                <!-- High & Low Expected -->
+                <div id="high-low" class="text-[0.65rem] sm:text-xs font-normal tracking-widest mt-1 opacity-60 loading">
+                    H: --&deg; &nbsp; L: --&deg;
+                </div>
+            </div>
+        </div>
+        
+        <!-- Seasonal SVG Tree -->
+        <div class="mt-4 sm:mt-6 flex justify-center opacity-80">
+            <svg width="120" height="120" viewBox="0 0 100 100" class="overflow-visible">
+                <!-- Ground Grass Tufts (Static & Smaller) -->
+                <g stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.5">
+                    <path d="M43 95 Q41 91 40 89" />
+                    <path d="M46 95 Q45 91 44 88" />
+                    <path d="M54 95 Q55 91 56 88" />
+                    <path d="M57 95 Q58 91 60 89" />
+                </g>
+
+                <!-- Swaying Tree Group (Only tree sways) -->
+                <g class="animate-sway" style="transform-origin: 50px 95px;">
+                    <!-- Trunk and main branches (CurrentColor adapts to Dark Mode) -->
+                    <path d="M50 95 L50 45 M50 65 L35 50 M50 55 L65 40" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/>
+                    
+                    <!-- Leaves Group (Colors change via JS) -->
+                    <g id="tree-leaves" class="transition-all duration-1000 ease-in-out origin-bottom" stroke-width="3" stroke="currentColor" fill="none">
+                        <circle cx="50" cy="30" r="18" />
+                        <circle cx="32" cy="45" r="14" />
+                        <circle cx="68" cy="45" r="14" />
+                        <circle cx="50" cy="15" r="12" />
+                    </g>
+                    
+                    <!-- Winter Snow and Bare branches (Hidden by default) -->
+                    <g id="tree-snow" class="transition-all duration-1000 ease-in-out" opacity="0" fill="currentColor">
+                        <!-- Snowflakes -->
+                        <circle cx="30" cy="20" r="1.5" />
+                        <circle cx="70" cy="25" r="1.5" />
+                        <circle cx="50" cy="5" r="1.5" />
+                        <circle cx="20" cy="40" r="1.5" />
+                        <circle cx="80" cy="55" r="1.5" />
+                        <!-- Extra bare branches -->
+                        <path d="M35 50 L25 45 M65 40 L75 35 M50 45 L45 35" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/>
+                    </g>
+                </g>
+            </svg>
+        </div>
+
+    <!-- Detailed Weather Modal with Apple Liquid Glass styling -->
+    <div id="weather-modal" class="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 opacity-0 pointer-events-none transition-opacity duration-300" onclick="toggleWeatherModal()">
+        <div class="liquid-glass text-[#4A4A45] dark:text-[#eae8d9] p-6 rounded-3xl shadow-2xl max-w-sm w-11/12 sm:w-full text-center transform scale-95 transition-transform duration-300" id="weather-modal-card" onclick="event.stopPropagation()">
+            <div class="text-xs font-semibold tracking-widest uppercase mb-4 opacity-70">Weather Details</div>
+            
+            <div class="grid grid-cols-2 gap-3 text-xs tracking-wider mb-4">
+                <div class="flex flex-col items-center p-3 rounded-2xl liquid-glass-subtle">
+                    <i class="ph ph-wind text-xl mb-1 opacity-70"></i>
+                    <span class="opacity-60 text-[0.6rem]">WIND</span>
+                    <span id="modal-wind" class="font-bold mt-0.5">-- mph</span>
+                </div>
+                <div class="flex flex-col items-center p-3 rounded-2xl liquid-glass-subtle">
+                    <i class="ph ph-drop text-xl mb-1 opacity-70"></i>
+                    <span class="opacity-60 text-[0.6rem]">HUMIDITY</span>
+                    <span id="modal-humidity" class="font-bold mt-0.5">--%</span>
+                </div>
+                <div class="flex flex-col items-center p-3 rounded-2xl liquid-glass-subtle col-span-2">
+                    <i class="ph ph-cloud-rain text-xl mb-1 opacity-70"></i>
+                    <span class="opacity-60 text-[0.6rem]">PRECIPITATION CHANCE</span>
+                    <span id="modal-precip" class="font-bold mt-0.5">--%</span>
+                </div>
+            </div>
+
+            <!-- 5-Hour Temperature Trend -->
+            <div class="text-[0.65rem] font-semibold tracking-widest uppercase opacity-60 mb-2">5-Hour Forecast</div>
+            <div id="hourly-forecast" class="flex justify-between items-center liquid-glass-subtle p-3.5 rounded-2xl mb-5 text-xs">
+                <!-- Dynamically populated -->
+                <div class="opacity-50 text-[0.7rem] w-full text-center">Loading trend...</div>
+            </div>
+
+            <div class="flex items-center justify-center gap-3">
+                <button class="px-5 py-2 rounded-full text-xs font-medium liquid-glass-button" onclick="toggleTemperatureUnit();">
+                    Unit: <span id="modal-unit-label" class="font-semibold">Fahrenheit (&deg;F)</span>
+                </button>
+                <button class="px-5 py-2 rounded-full text-xs font-medium liquid-glass-button" onclick="toggleWeatherModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Location Status (Subtle) -->
+    <div id="status-message" class="absolute bottom-4 text-xs tracking-widest opacity-40 z-10">
+        Locating...
     </div>
 
     <script>
-        // Initialize Polyfill for mobile drag-and-drop
-        MobileDragDrop.polyfill({
-            dragImageTranslateOverride: MobileDragDrop.scrollBehaviourDragImageTranslateOverride
-        });
-        // Required for iOS mobile-drag-drop scrolling behavior
-        window.addEventListener('touchmove', function() {}, {passive: false});
-
-        // --- State Management ---
-        let widgets = [];
-        try {
-            // Fixed: Safe local storage parsing
-            const stored = localStorage.getItem('my_widgets');
-            widgets = stored ? JSON.parse(stored) : [];
-            if (!Array.isArray(widgets)) widgets = [];
-        } catch(e) {
-            widgets = [];
-            console.error("Failed to parse widgets, resetting to empty array.");
+        // --- Immediate Dark Mode Check ---
+        const initialHour = new Date().getHours();
+        if (initialHour < 6 || initialHour >= 18) {
+            document.body.classList.add('dark-mode');
         }
-        
-        let isEditing = false;
+
+        // --- Moon Phase Calculation ---
+        function getMoonPhase(date = new Date()) {
+            let year = date.getFullYear();
+            let month = date.getMonth() + 1;
+            let day = date.getDate();
+            if (month < 3) { year--; month += 12; }
+            month++;
+            let c = 365.25 * year;
+            let e = 30.6 * month;
+            let jd = c + e + day - 694039.09;
+            jd /= 29.5305882;
+            let phase = (jd - Math.floor(jd)) * 29.5305882;
+            
+            if (phase < 1.84) return "NEW MOON";
+            if (phase < 5.53) return "WAXING CRESCENT";
+            if (phase < 9.22) return "FIRST QUARTER";
+            if (phase < 12.91) return "WAXING GIBBOUS";
+            if (phase < 16.61) return "FULL MOON";
+            if (phase < 20.30) return "WANING GIBBOUS";
+            if (phase < 23.99) return "LAST QUARTER";
+            if (phase < 27.68) return "WANING CRESCENT";
+            return "NEW MOON";
+        }
+
+        function updateMoonPhaseDisplay() {
+            const moonEl = document.getElementById('moon-phase');
+            if (document.body.classList.contains('dark-mode')) {
+                moonEl.innerText = getMoonPhase();
+                moonEl.classList.remove('hidden');
+            } else {
+                moonEl.classList.add('hidden');
+            }
+        }
+
+        // --- Generate Ambient Stars for Dark Mode ---
+        function createStars() {
+            const container = document.getElementById('star-container');
+            container.innerHTML = '';
+            for (let i = 0; i < 35; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const size = Math.random() * 2 + 1;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.top = `${Math.random() * 50}%`;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.setProperty('--delay', `${Math.random() * 4}s`);
+                star.style.setProperty('--duration', `${2 + Math.random() * 3}s`);
+                container.appendChild(star);
+            }
+        }
+        createStars();
+
+        // --- State Variables ---
+        let weatherData = { tempF: null, highF: null, lowF: null, windMph: null, humidity: null, precipChance: null, sunrise: null, sunset: null, hourly: [] };
         let isCelsius = false;
 
-        // Global Data Stores
-        let globalTime = "";
-        let globalDate = "";
-        let globalWeatherData = null;
-        let isNight = false;
-
-        // --- Available Widget Types ---
-        const sizeClasses = { 'small': 'size-small', 'medium': 'size-medium', 'large': 'size-large' };
-        
-        function getCardProps(id, size, index) {
-            return `class="widget-card ${sizeClasses[size || 'small']}" id="widget-${id}" 
-                    draggable="true" ondragstart="dragStart(event, '${id}')" 
-                    ondragenter="dragEnter(event)" ondragover="dragOver(event)" 
-                    ondrop="drop(event, '${id}')" ondragend="dragEnd(event)"`;
-        }
-        
-        const widgetLibrary = {
-            'time': {
-                name: 'Time',
-                icon: 'ph-clock',
-                render: (id, size, index) => `
-                    <div ${getCardProps(id, size, index)}>
-                        <div class="delete-btn" onclick="removeWidget('${id}', event)"><i class="ph ph-x"></i></div>
-                        <div class="resize-btn" onclick="resizeWidget('${id}', event)"><i class="ph ph-corners-out"></i></div>
-                        <div class="time-text global-time-sync pointer-events-none">--:--</div>
-                    </div>
-                `
-            },
-            'date': {
-                name: 'Date',
-                icon: 'ph-calendar-blank',
-                render: (id, size, index) => `
-                    <div ${getCardProps(id, size, index)}>
-                        <div class="delete-btn" onclick="removeWidget('${id}', event)"><i class="ph ph-x"></i></div>
-                        <div class="resize-btn" onclick="resizeWidget('${id}', event)"><i class="ph ph-corners-out"></i></div>
-                        <div class="date-text global-date-sync pointer-events-none">--, -- --</div>
-                    </div>
-                `
-            },
-            'weather': {
-                name: 'Weather',
-                icon: 'ph-cloud-sun',
-                render: (id, size, index) => `
-                    <div ${getCardProps(id, size, index)} onclick="toggleTempUnit()">
-                        <div class="delete-btn" onclick="removeWidget('${id}', event)"><i class="ph ph-x"></i></div>
-                        <div class="resize-btn" onclick="resizeWidget('${id}', event)"><i class="ph ph-corners-out"></i></div>
-                        <div class="flex flex-col items-center pointer-events-none">
-                            <i class="ph ph-thermometer text-3xl mb-1 global-weather-icon-sync"></i>
-                            <span class="font-bold text-2xl tracking-wider global-temp-sync loading">--&deg;</span>
-                            <div class="text-[0.6rem] font-normal tracking-widest mt-1 opacity-60 global-hl-sync">
-                                H:--&deg; L:--&deg;
-                            </div>
-                        </div>
-                    </div>
-                `
-            },
-            'tree': {
-                name: 'Season Tree',
-                icon: 'ph-tree',
-                render: (id, size, index) => `
-                    <div ${getCardProps(id, size, index)}>
-                        <div class="delete-btn" onclick="removeWidget('${id}', event)"><i class="ph ph-x"></i></div>
-                        <div class="resize-btn" onclick="resizeWidget('${id}', event)"><i class="ph ph-corners-out"></i></div>
-                        <div class="opacity-80 animate-sway pointer-events-none">
-                            <svg width="80" height="80" viewBox="0 0 100 100" class="overflow-visible">
-                                <path d="M50 95 L50 45 M50 65 L35 50 M50 55 L65 40" stroke="currentColor" stroke-width="5" stroke-linecap="round" fill="none"/>
-                                <g class="tree-leaves-sync" stroke-width="5" stroke="currentColor" fill="none" class="transition-colors duration-1000">
-                                    <circle cx="50" cy="30" r="16" />
-                                    <circle cx="32" cy="45" r="14" />
-                                    <circle cx="68" cy="45" r="14" />
-                                    <circle cx="50" cy="15" r="12" />
-                                </g>
-                                <g class="tree-snow-sync" class="transition-opacity duration-1000" style="opacity: 0;">
-                                    <path d="M35 50 L25 45 M65 40 L75 35 M50 45 L45 35" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none"/>
-                                    <circle cx="28" cy="20" r="2" fill="currentColor" />
-                                    <circle cx="72" cy="24" r="2" fill="currentColor" />
-                                    <circle cx="50" cy="8" r="2" fill="currentColor" />
-                                    <circle cx="22" cy="38" r="2" fill="currentColor" />
-                                    <circle cx="78" cy="38" r="2" fill="currentColor" />
-                                </g>
-                            </svg>
-                        </div>
-                    </div>
-                `
-            }
-        };
-
-        // --- Core Application Logic ---
-        
-        let justAddedId = null;
-        
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            toast.innerText = msg;
-            toast.style.opacity = '1';
-            setTimeout(() => toast.style.opacity = '0', 2500);
-        }
-
-        function getUsedSlots() {
-            let total = 0;
-            widgets.forEach(w => {
-                const s = w.size || (w.type === 'time' ? 'medium' : 'small');
-                if (s === 'medium') total += 2;
-                else if (s === 'large') total += 4;
-                else total += 1;
-            });
-            return total;
-        }
-
-        function renderGrid() {
-            const grid = document.getElementById('widget-grid');
-            const emptyState = document.getElementById('empty-state');
-            
-            emptyState.style.opacity = widgets.length === 0 ? '0.4' : '0';
-
-            // Fixed: Use DOM diffing instead of innerHTML wipe to preserve animations & state
-            
-            // 1. Remove deleted nodes
-            Array.from(grid.children).forEach(child => {
-                const childId = child.id.replace('widget-', '');
-                if (!widgets.find(w => w.id === childId)) {
-                    grid.removeChild(child);
-                }
-            });
-
-            // 2. Add or reorder nodes
-            widgets.forEach((widget, index) => {
-                const template = widgetLibrary[widget.type];
-                if (!template) return;
-                
-                const size = widget.size || (widget.type === 'time' ? 'medium' : 'small');
-                let el = document.getElementById('widget-' + widget.id);
-
-                if (!el) {
-                    // Create new node if it doesn't exist
-                    const temp = document.createElement('div');
-                    temp.innerHTML = template.render(widget.id, size, index).trim();
-                    el = temp.firstChild;
-                    grid.appendChild(el);
-                    
-                    // Handle fly-in
-                    if (justAddedId === widget.id) {
-                        el.classList.add('fly-in');
-                        setTimeout(() => el.classList.remove('fly-in'), 600);
-                    }
-                } else {
-                    // Update existing node properties
-                    el.className = `widget-card ${sizeClasses[size]}`;
-                    el.setAttribute('ondragstart', `dragStart(event, '${widget.id}')`);
-                    el.setAttribute('ondrop', `drop(event, '${widget.id}')`);
-                    
-                    // Re-append to maintain array order in the DOM
-                    grid.appendChild(el); 
-                }
-            });
-            
-            justAddedId = null;
-
-            // Immediately hydrate new widgets
-            updateTimeDOM();
-            updateWeatherDOM();
-            updateTreeDOM();
-        }
-
-        function addWidget(type) {
-            const defaultSize = type === 'time' ? 'medium' : 'small';
-            const cost = defaultSize === 'medium' ? 2 : 1;
-            
-            if (getUsedSlots() + cost > 13) {
-                showToast("NOT ENOUGH SPACE");
-                return;
-            }
-
-            // Fixed: Stronger unique IDs prevent rapid tap collisions
-            const newId = Date.now().toString() + Math.random().toString(36).substr(2, 5); 
-            widgets.push({ id: newId, type: type, size: defaultSize });
-            justAddedId = newId;
-            saveWidgets();
-            renderGrid();
-        }
-        
-        function resizeWidget(id, event) {
-            if(event) event.stopPropagation();
-            const widget = widgets.find(w => w.id === id);
-            if(widget) {
-                const currentSize = widget.size || (widget.type === 'time' ? 'medium' : 'small');
-                const nextSize = { 'small': 'medium', 'medium': 'large', 'large': 'small' };
-                let targetSize = nextSize[currentSize];
-                
-                const currentCost = currentSize === 'large' ? 4 : (currentSize === 'medium' ? 2 : 1);
-                const nextCost = targetSize === 'large' ? 4 : (targetSize === 'medium' ? 2 : 1);
-                
-                if (getUsedSlots() - currentCost + nextCost > 13) {
-                    if (targetSize === 'large') {
-                        targetSize = 'small'; // Skip large and fallback to small (cost 1)
-                    } else {
-                        showToast("NOT ENOUGH SPACE TO RESIZE");
-                        return;
-                    }
-                }
-                
-                widget.size = targetSize;
-                saveWidgets();
-                renderGrid();
-            }
-        }
-
-        // Drag and Drop Logic
-        function dragStart(e, id) {
-            if (!isEditing) { e.preventDefault(); return; }
-            document.body.classList.add('dragging-active'); 
-            e.dataTransfer.setData('text/plain', String(id));
-            e.dataTransfer.effectAllowed = 'move';
-            
-            // Explicitly tell the browser to drag the whole card, centered on the mouse
-            if (e.dataTransfer.setDragImage) {
-                e.dataTransfer.setDragImage(e.target, e.target.clientWidth / 2, e.target.clientHeight / 2);
-            }
-            
-            // Fix: Delay opacity change so Windows Chrome generates the drag image properly
-            requestAnimationFrame(() => {
-                const el = document.getElementById('widget-' + id);
-                // Lower opacity to near-zero so it feels like you "picked it up" from the grid
-                if (el) el.style.opacity = '0.01';
-            });
-        }
-        
-        function dragEnter(e) {
-            if (!isEditing) return;
-            e.preventDefault(); // REQUIRED by HTML5 spec to allow dropping
-        }
-        
-        function dragOver(e) {
-            if (!isEditing) return;
-            e.preventDefault(); // REQUIRED by HTML5 spec to allow dropping
-            e.dataTransfer.dropEffect = 'move';
-        }
-        
-        function drop(e, targetId) {
-            if (!isEditing) return;
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const sourceId = e.dataTransfer.getData('text/plain');
-            if (sourceId === targetId || !sourceId) return;
-            
-            const sourceIndex = widgets.findIndex(w => w.id === sourceId);
-            const targetIndex = widgets.findIndex(w => w.id === targetId);
-            
-            if (sourceIndex === -1 || targetIndex === -1) return;
-            
-            // Reorder array
-            const draggedWidget = widgets.splice(sourceIndex, 1)[0];
-            widgets.splice(targetIndex, 0, draggedWidget);
-            
-            saveWidgets();
-            renderGrid();
-        }
-        
-        function gridDrop(e) {
-            if (!isEditing) return;
-            e.preventDefault();
-            
-            // Only process if dropped directly on the grid gap (not on a widget card)
-            if (e.target.id === 'widget-grid') {
-                const sourceId = e.dataTransfer.getData('text/plain');
-                if (!sourceId) return;
-                
-                const sourceIndex = widgets.findIndex(w => w.id === sourceId);
-                if (sourceIndex === -1) return;
-                
-                // Move widget to the very end of the grid
-                const draggedWidget = widgets.splice(sourceIndex, 1)[0];
-                widgets.push(draggedWidget);
-                
-                saveWidgets();
-                renderGrid();
-            }
-        }
-        
-        function dragEnd(e) {
-            document.body.classList.remove('dragging-active');
-            // Fix: Globally reset opacity in case target lost focus
-            document.querySelectorAll('.widget-card').forEach(el => el.style.opacity = '1');
-        }
-
-        function removeWidget(id, event) {
-            if(event) event.stopPropagation();
-            // Convert both to strings in case older saved widgets had integer IDs
-            widgets = widgets.filter(w => String(w.id) !== String(id));
-            saveWidgets();
-            renderGrid();
-        }
-
-        function saveWidgets() {
-            localStorage.setItem('my_widgets', JSON.stringify(widgets));
-        }
-
-        // --- Edit Mode (Long Press Logic) ---
-        let pressTimer;
-        
-        function startPress(e) {
-            if (isEditing) return;
-            if (e.target.closest('.btn-ui') || e.target.closest('#carousel-modal')) return;
-            pressTimer = setTimeout(enterEditMode, 600);
-        }
-
-        function cancelPress() {
-            clearTimeout(pressTimer);
-        }
-
-        function enterEditMode() {
-            if ('vibrate' in navigator) navigator.vibrate(50);
-            isEditing = true;
-            document.body.classList.add('editing');
-        }
-
-        function exitEditMode() {
-            isEditing = false;
-            document.body.classList.remove('editing');
-            const modal = document.getElementById('carousel-modal');
-            if (modal.classList.contains('open')) toggleCarousel();
-        }
-
-        window.addEventListener('mousedown', startPress);
-        window.addEventListener('mouseup', cancelPress);
-        window.addEventListener('mouseleave', cancelPress);
-        window.addEventListener('touchstart', startPress, {passive: true});
-        window.addEventListener('touchend', cancelPress);
-        window.addEventListener('touchcancel', cancelPress);
-
-        // --- Carousel Logic ---
-        function populateCarousel() {
-            const track = document.querySelector('.carousel-track');
-            track.innerHTML = '';
-            
-            Object.keys(widgetLibrary).forEach(key => {
-                const widget = widgetLibrary[key];
-                track.innerHTML += `
-                    <div class="carousel-item flex flex-col items-center p-4 rounded-2xl bg-black/5 dark:bg-white/5" onclick="addWidget('${key}')">
-                        <i class="ph ${widget.icon} text-4xl mb-2 opacity-80"></i>
-                        <span class="text-xs tracking-widest font-bold opacity-70">${widget.name}</span>
-                    </div>
-                `;
-            });
-        }
-
-        function toggleCarousel() {
-            document.getElementById('carousel-modal').classList.toggle('open');
-        }
-
-        // --- Global Data Systems ---
-
-        function runTimeSystem() {
+        // --- Clock & Date Logic ---
+        function updateTimeAndDate() {
             const now = new Date();
-            let hours = now.getHours();
+            let hours = now.getHours() % 12 || 12; 
             let minutes = now.getMinutes();
-            hours = hours % 12 || 12; 
+            
             const hoursStr = hours.toString().padStart(2, '0');
             const minutesStr = minutes.toString().padStart(2, '0');
-            
-            globalTime = `${hoursStr.charAt(0)} ${hoursStr.charAt(1)} : ${minutesStr.charAt(0)} ${minutesStr.charAt(1)}`;
-            
+            document.getElementById('time').innerText = `${hoursStr.charAt(0)} ${hoursStr.charAt(1)} : ${minutesStr.charAt(0)} ${minutesStr.charAt(1)}`;
+
             const days = ['S U N', 'M O N', 'T U E', 'W E D', 'T H U', 'F R I', 'S A T'];
             const months = ['J A N', 'F E B', 'M A R', 'A P R', 'M A Y', 'J U N', 'J U L', 'A U G', 'S E P', 'O C T', 'N O V', 'D E C'];
-            globalDate = `${days[now.getDay()]} ,  ${months[now.getMonth()]}  ${now.getDate().toString().split('').join(' ')}`;
-
-            updateTimeDOM();
+            
+            const dayStr = days[now.getDay()];
+            const monthStr = months[now.getMonth()];
+            const dateNum = now.getDate().toString().split('').join(' ');
+            
+            document.getElementById('date-display').innerText = `${dayStr} ,  ${monthStr}  ${dateNum}`;
         }
 
-        function updateTimeDOM() {
-            document.querySelectorAll('.global-time-sync').forEach(el => el.innerHTML = globalTime);
-            document.querySelectorAll('.global-date-sync').forEach(el => el.innerHTML = globalDate);
-        }
+        setInterval(updateTimeAndDate, 1000);
+        updateTimeAndDate();
 
-        setInterval(runTimeSystem, 1000);
-        runTimeSystem();
-
+        // --- Interactive Temperature Logic ---
         function fToC(f) { return (f - 32) * 5/9; }
 
-        function toggleTempUnit() {
-            if (isEditing) return;
+        function toggleTemperatureUnit() {
+            if (weatherData.tempF === null) return;
             isCelsius = !isCelsius;
-            updateWeatherDOM();
+            renderWeather();
         }
 
-        async function fetchWeather() {
-            let lat = 40.7091, lon = -112.0983;
-            try {
-                const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&temperature_unit=fahrenheit&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=auto`;
-                const response = await fetch(url);
-                globalWeatherData = await response.json();
+        function toggleWeatherModal() {
+            const modal = document.getElementById('weather-modal');
+            const card = document.getElementById('weather-modal-card');
+            const isOpen = modal.classList.contains('opacity-100');
 
-                const now = new Date();
-                const sunrise = new Date(globalWeatherData.daily.sunrise[0]);
-                const sunset = new Date(globalWeatherData.daily.sunset[0]);
-                isNight = now < sunrise || now > sunset;
-                
-                if (isNight) document.body.classList.add('dark-mode');
-                else document.body.classList.remove('dark-mode');
-
-                updateWeatherDOM();
-            } catch(e) {
-                console.error("Weather failed", e);
+            if (isOpen) {
+                modal.classList.remove('opacity-100');
+                modal.classList.add('opacity-0', 'pointer-events-none');
+                card.classList.remove('scale-100');
+                card.classList.add('scale-95');
+            } else {
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+                modal.classList.add('opacity-100');
+                card.classList.remove('scale-95');
+                card.classList.add('scale-100');
             }
         }
 
-        function updateWeatherDOM() {
-            if (!globalWeatherData) return;
-            
-            const data = globalWeatherData;
-            const tF = data.current_weather.temperature;
-            const hF = data.daily.temperature_2m_max[0];
-            const lF = data.daily.temperature_2m_min[0];
+        function renderWeather() {
+            const tempEl = document.getElementById('temperature');
+            const hlEl = document.getElementById('high-low');
 
-            const t = isCelsius ? fToC(tF) : tF;
-            const h = isCelsius ? fToC(hF) : hF;
-            const l = isCelsius ? fToC(lF) : lF;
-            
-            const code = data.current_weather.weathercode;
-            let icon = 'ph-cloud-sun';
-            
-            if (code === 0) icon = isNight ? 'ph-moon' : 'ph-sun';
-            else if ([1, 2].includes(code)) icon = isNight ? 'ph-cloud-moon' : 'ph-cloud-sun';
-            else if ([61, 63, 65].includes(code)) icon = 'ph-cloud-rain';
-            else if ([71, 73, 75].includes(code)) icon = 'ph-cloud-snow';
-            else icon = 'ph-cloud';
+            const t = isCelsius ? fToC(weatherData.tempF) : weatherData.tempF;
+            const h = isCelsius ? fToC(weatherData.highF) : weatherData.highF;
+            const l = isCelsius ? fToC(weatherData.lowF) : weatherData.lowF;
 
-            document.querySelectorAll('.global-temp-sync').forEach(el => {
-                el.innerHTML = `${Math.round(t)}&deg;`;
-                el.classList.remove('loading');
-            });
-            document.querySelectorAll('.global-hl-sync').forEach(el => {
-                el.innerHTML = `H:${Math.round(h)}&deg; &nbsp; L:${Math.round(l)}&deg;`;
-            });
-            document.querySelectorAll('.global-weather-icon-sync').forEach(el => {
-                el.className = `ph ${icon} text-4xl mb-1 global-weather-icon-sync transition-all`;
-            });
+            tempEl.innerHTML = `${Math.round(t)}&deg;`;
+            hlEl.innerHTML = `H: ${Math.round(h)}&deg; &nbsp; L: ${Math.round(l)}&deg;`;
+            
+            tempEl.classList.remove('loading');
+            hlEl.classList.remove('loading');
+
+            // Update modal details & hourly forecast
+            if (weatherData.windMph !== null) {
+                document.getElementById('modal-wind').innerText = `${Math.round(weatherData.windMph)} mph`;
+                document.getElementById('modal-humidity').innerText = `${Math.round(weatherData.humidity)}%`;
+                document.getElementById('modal-precip').innerText = `${Math.round(weatherData.precipChance)}%`;
+                document.getElementById('modal-unit-label').innerHTML = isCelsius ? 'Celsius (&deg;C)' : 'Fahrenheit (&deg;F)';
+                
+                // Render 5-hour trend
+                const hourlyContainer = document.getElementById('hourly-forecast');
+                if (weatherData.hourly && weatherData.hourly.length >= 5) {
+                    const currentHour = new Date().getHours();
+                    let html = '';
+                    for (let i = 0; i < 5; i++) {
+                        const idx = currentHour + i;
+                        const item = weatherData.hourly[idx] || weatherData.hourly[i];
+                        const hr = (currentHour + i) % 12 || 12;
+                        const ampm = (currentHour + i) % 24 >= 12 ? 'PM' : 'AM';
+                        const tempVal = isCelsius ? fToC(item.temp) : item.temp;
+                        html += `
+                            <div class="flex flex-col items-center">
+                                <span class="opacity-50 text-[0.6rem]">${hr}${ampm}</span>
+                                <span class="font-bold my-0.5">${Math.round(tempVal)}&deg;</span>
+                            </div>
+                        `;
+                    }
+                    hourlyContainer.innerHTML = html;
+                }
+            }
         }
 
-        function updateTreeDOM() {
+        // --- Seasonal Scene Logic ---
+        function updateSeason() {
             const month = new Date().getMonth();
-            let season = 'autumn';
+            const leaves = document.getElementById('tree-leaves');
+            const snow = document.getElementById('tree-snow');
+            
+            let season = 'summer';
             if (month === 11 || month <= 1) season = 'winter';
             else if (month >= 2 && month <= 4) season = 'spring';
             else if (month >= 5 && month <= 7) season = 'summer';
-            
-            document.querySelectorAll('.tree-leaves-sync').forEach(leaves => {
-                leaves.style.opacity = season === 'winter' ? '0' : '1';
+            else season = 'autumn';
+
+            if (season === 'winter') {
+                leaves.style.opacity = '0';
+                snow.style.opacity = '1';
+            } else {
+                leaves.style.opacity = '1';
+                snow.style.opacity = '0';
                 if (season === 'spring') leaves.style.color = '#9CB494';
                 else if (season === 'summer') leaves.style.color = '#6D8262';
                 else if (season === 'autumn') leaves.style.color = '#C18C61';
-            });
-            
-            document.querySelectorAll('.tree-snow-sync').forEach(snow => {
-                snow.style.opacity = season === 'winter' ? '1' : '0';
-            });
+            }
+
+            return season;
         }
 
-        function initApp() {
-            // Fixed: Use system preference as the immediate fallback before weather loads to stop theme flashing
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        const currentSeason = updateSeason();
+
+        // --- Weather & Environment Logic ---
+        function getWeatherIconClass(wmoCode, isNight) {
+            const code = parseInt(wmoCode);
+            if (code === 0) return isNight ? 'ph-moon' : 'ph-sun';
+            if ([1, 2].includes(code)) return isNight ? 'ph-cloud-moon' : 'ph-cloud-sun';
+            if (code === 3) return 'ph-cloud';
+            if ([45, 48].includes(code)) return 'ph-cloud-fog';
+            if ([51, 53, 55, 56, 57].includes(code)) return 'ph-cloud-drizzle';
+            if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return 'ph-cloud-rain';
+            if ([71, 73, 75, 77, 85, 86].includes(code)) return 'ph-cloud-snow';
+            if ([95, 96, 99].includes(code)) return 'ph-cloud-lightning';
+            return isNight ? 'ph-cloud-moon' : 'ph-cloud-sun';
+        }
+
+        function updateLighting(sunriseISO, sunsetISO) {
+            const now = new Date();
+            const sunrise = new Date(sunriseISO);
+            const sunset = new Date(sunsetISO);
+            
+            const isNight = now < sunrise || now > sunset;
+            const hour = now.getHours();
+
+            document.body.classList.remove('dawn-mode', 'dusk-mode', 'night-mode');
+
+            if (isNight) {
                 document.body.classList.add('dark-mode');
+                if (hour >= 20 || hour < 5) document.body.classList.add('night-mode');
+                else document.body.classList.add('dusk-mode');
+            } else {
+                document.body.classList.remove('dark-mode');
+                if (hour >= 5 && hour < 8) document.body.classList.add('dawn-mode');
+                else if (hour >= 17 && hour <= 19) document.body.classList.add('dusk-mode');
             }
             
-            populateCarousel();
-            renderGrid();
-            fetchWeather();
+            updateMoonPhaseDisplay();
+            return isNight;
+        }
+
+        async function fetchAirQuality(lat, lon) {
+            try {
+                const res = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi`);
+                const data = await res.json();
+                if (data && data.current && data.current.us_aqi !== undefined) {
+                    const aqi = data.current.us_aqi;
+                    const dot = document.getElementById('aqi-dot');
+                    dot.classList.remove('opacity-0');
+                    dot.title = `Air Quality Index: ${aqi}`;
+
+                    if (aqi <= 50) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 opacity-80 transition-opacity duration-500';
+                    else if (aqi <= 100) dot.className = 'w-2 h-2 rounded-full bg-amber-400 opacity-80 transition-opacity duration-500';
+                    else dot.className = 'w-2 h-2 rounded-full bg-rose-500 opacity-80 transition-opacity duration-500';
+                }
+            } catch (e) {
+                console.warn("Failed to fetch AQI", e);
+            }
+        }
+
+        async function fetchLocationName(lat, lon) {
+            try {
+                const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+                const data = await res.json();
+                const city = data.city || data.locality || data.principalSubdivision || "LOCAL WEATHER";
+                document.getElementById('location-display').innerText = city.toUpperCase();
+            } catch (e) {
+                document.getElementById('location-display').innerText = "WEST VALLEY CITY";
+            }
+        }
+
+        async function fetchWeather(lat, lon) {
+            try {
+                fetchLocationName(lat, lon);
+                fetchAirQuality(lat, lon);
+
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&hourly=temperature_2m,precipitation_probability&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data && data.current) {
+                    weatherData.tempF = data.current.temperature_2m;
+                    weatherData.highF = data.daily.temperature_2m_max[0];
+                    weatherData.lowF = data.daily.temperature_2m_min[0];
+                    weatherData.windMph = data.current.wind_speed_10m;
+                    weatherData.humidity = data.current.relative_humidity_2m;
+                    weatherData.precipChance = data.hourly.precipitation_probability ? data.hourly.precipitation_probability[new Date().getHours()] || 0 : 0;
+                    weatherData.sunrise = data.daily.sunrise[0];
+                    weatherData.sunset = data.daily.sunset[0];
+
+                    if (data.hourly && data.hourly.temperature_2m) {
+                        weatherData.hourly = data.hourly.temperature_2m.map(t => ({ temp: t }));
+                    }
+
+                    renderWeather();
+
+                    // Feature 1: Wind-responsive tree sway speed
+                    const swayDuration = Math.max(1.5, Math.min(8, 8 - (weatherData.windMph / 4)));
+                    document.documentElement.style.setProperty('--sway-duration', `${swayDuration}s`);
+
+                    const isNight = updateLighting(data.daily.sunrise[0], data.daily.sunset[0]);
+
+                    const weatherCode = data.current.weather_code;
+                    const iconEl = document.getElementById('weather-icon');
+                    iconEl.className = `ph ${getWeatherIconClass(weatherCode, isNight)} transition-all duration-500 animate-float`;
+                    
+                    document.getElementById('status-message').innerText = "";
+                }
+            } catch (error) {
+                console.error("Failed to fetch weather:", error);
+                document.getElementById('status-message').innerText = "Failed to load weather.";
+            }
+        }
+
+        // --- Geolocation Logic ---
+        function initApp() {
+            generateAppIcon();
+            
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        fetchWeather(position.coords.latitude, position.coords.longitude);
+                    },
+                    (error) => {
+                        console.warn("Geolocation denied or failed, using default location.");
+                        document.getElementById('status-message').innerText = "";
+                        fetchWeather(40.6916, -111.9963);
+                    },
+                    { timeout: 5000 }
+                );
+            } else {
+                fetchWeather(40.6916, -111.9963);
+            }
+        }
+
+        // --- Generate Home Screen Icon ---
+        function generateAppIcon() {
+            const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512">
+                <rect width="100" height="100" fill="#fef6cd"/>
+                <path d="M50 95 L50 45 M50 65 L35 50 M50 55 L65 40" stroke="#4a4a45" stroke-width="6" stroke-linecap="round" fill="none"/>
+                <g stroke-width="5" stroke="#6d8262" fill="none">
+                    <circle cx="50" cy="30" r="18" />
+                    <circle cx="32" cy="45" r="14" />
+                    <circle cx="68" cy="45" r="14" />
+                    <circle cx="50" cy="15" r="12" />
+                </g>
+            </svg>`;
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+            
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0);
+                const pngDataUrl = canvas.toDataURL('image/png');
+                
+                let appleLink = document.querySelector('link[rel="apple-touch-icon"]');
+                if (!appleLink) {
+                    appleLink = document.createElement('link');
+                    appleLink.rel = 'apple-touch-icon';
+                    document.head.appendChild(appleLink);
+                }
+                appleLink.href = pngDataUrl;
+                
+                let favicon = document.querySelector('link[rel="icon"]');
+                if (!favicon) {
+                    favicon = document.createElement('link');
+                    favicon.rel = 'icon';
+                    document.head.appendChild(favicon);
+                }
+                favicon.href = pngDataUrl;
+                
+                URL.revokeObjectURL(url);
+            };
+            img.src = url;
         }
 
         initApp();
