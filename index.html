@@ -107,6 +107,48 @@
             bottom: calc(1rem + env(safe-area-inset-bottom));
         }
 
+        /* --- Dynamic Entrance Slide-In Animation --- */
+        @keyframes slideInUp {
+            0% {
+                opacity: 0;
+                transform: translateY(28px) scale(0.95);
+                filter: blur(6px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+                filter: blur(0);
+            }
+        }
+        .animate-entrance {
+            opacity: 0;
+            animation: slideInUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .stagger-1 { animation-delay: 0.05s; }
+        .stagger-2 { animation-delay: 0.15s; }
+        .stagger-3 { animation-delay: 0.25s; }
+        .stagger-4 { animation-delay: 0.35s; }
+        .stagger-5 { animation-delay: 0.45s; }
+
+        /* Mobile Landscape & Short Viewport Optimization */
+        @media (max-height: 520px) {
+            body {
+                overflow-y: auto;
+            }
+            .time-display {
+                font-size: 2.75rem !important;
+            }
+            #app-container {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: wrap !important;
+                justify-content: center !important;
+                gap: 1rem 2rem !important;
+                padding: 1rem !important;
+                max-width: 95vw;
+            }
+        }
+
         /* Ambient Stars Animation */
         @keyframes twinkle {
             0%, 100% { opacity: 0.15; transform: scale(0.8); }
@@ -212,10 +254,10 @@
     <div id="star-container" class="fixed top-0 left-0 right-0 h-1/2 pointer-events-none opacity-0 transition-opacity duration-1000 z-0"></div>
 
     <!-- Main Container -->
-    <div class="flex flex-col items-center transition-opacity duration-1000 z-10" id="app-container">
+    <div class="flex flex-col items-center transition-opacity duration-1000 z-10 max-w-full px-4" id="app-container">
         
         <!-- Location Display & Air Quality Indicator -->
-        <div class="flex items-center gap-2 mb-2 px-3.5 py-1 rounded-full liquid-glass-subtle">
+        <div class="flex items-center gap-2 mb-2 px-3.5 py-1 rounded-full liquid-glass-subtle animate-entrance stagger-1">
             <div class="text-[0.65rem] sm:text-xs tracking-[0.35em] font-medium opacity-70 uppercase" id="location-display">
                 LOCATING...
             </div>
@@ -223,37 +265,37 @@
         </div>
 
         <!-- Date & Moon Phase Display -->
-        <div class="flex items-center gap-2 text-xs sm:text-sm tracking-[0.3em] font-medium opacity-60 mb-2 sm:mb-4 whitespace-nowrap">
+        <div class="flex items-center gap-2 text-xs sm:text-sm tracking-[0.3em] font-medium opacity-60 mb-2 sm:mb-4 whitespace-nowrap animate-entrance stagger-2">
             <span id="date-display">-- , -- --</span>
             <span id="moon-phase" class="hidden text-[0.65rem] tracking-widest opacity-80 border-l border-current pl-2"></span>
         </div>
 
         <!-- Time Display -->
-        <div class="time-display flex items-center justify-center whitespace-nowrap" id="time">
+        <div class="time-display flex items-center justify-center whitespace-nowrap animate-entrance stagger-3" id="time">
             -- : --
         </div>
 
         <!-- Weather Display (Clickable for expanded details with Liquid Glass Pill effect) -->
-        <div class="flex items-center gap-6 sm:gap-8 mt-3 sm:mt-5 px-6 py-3 rounded-3xl liquid-glass-subtle cursor-pointer group hover:scale-[1.03] transition-all duration-300" onclick="toggleWeatherModal()" title="Click for weather details">
+        <div class="flex items-center gap-6 sm:gap-8 mt-2 sm:mt-5 px-5 sm:px-6 py-2.5 sm:py-3 rounded-3xl liquid-glass-subtle cursor-pointer group hover:scale-[1.03] transition-all duration-300 animate-entrance stagger-4" onclick="toggleWeatherModal()" title="Click for weather details">
             <!-- Dynamic Weather Icon with ambient float -->
-            <i class="ph ph-cloud-sun loading transition-all duration-500 animate-float text-4xl sm:text-5xl" id="weather-icon"></i>
+            <i class="ph ph-cloud-sun loading transition-all duration-500 animate-float text-3xl sm:text-5xl" id="weather-icon"></i>
             
             <!-- Temperature (Interactive Details / Toggle) -->
             <div class="flex flex-col items-center">
                 <div class="flex items-center gap-1 sm:gap-2 group-hover:scale-105 transition-transform">
-                    <i class="ph ph-thermometer text-3xl sm:text-5xl"></i>
-                    <span id="temperature" class="font-bold tracking-wider loading text-4xl sm:text-5xl">--&deg;</span>
+                    <i class="ph ph-thermometer text-2xl sm:text-5xl"></i>
+                    <span id="temperature" class="font-bold tracking-wider loading text-3xl sm:text-5xl">--&deg;</span>
                 </div>
                 <!-- High & Low Expected -->
-                <div id="high-low" class="text-[0.65rem] sm:text-xs font-normal tracking-widest mt-1 opacity-60 loading">
+                <div id="high-low" class="text-[0.65rem] sm:text-xs font-normal tracking-widest mt-0.5 sm:mt-1 opacity-60 loading">
                     H: --&deg; &nbsp; L: --&deg;
                 </div>
             </div>
         </div>
         
-        <!-- Seasonal SVG Tree -->
-        <div class="mt-4 sm:mt-6 flex justify-center opacity-80">
-            <svg width="120" height="120" viewBox="0 0 100 100" class="overflow-visible">
+        <!-- Seasonal SVG Tree (Resized smaller for mobile screen sizes) -->
+        <div class="mt-3 sm:mt-6 flex justify-center opacity-80 animate-entrance stagger-5">
+            <svg viewBox="0 0 100 100" class="w-20 h-20 sm:w-28 sm:h-28 overflow-visible">
                 <!-- Ground Grass Tufts (Static & Smaller) -->
                 <g stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.5">
                     <path d="M43 95 Q41 91 40 89" />
@@ -290,48 +332,58 @@
             </svg>
         </div>
 
-    <!-- Detailed Weather Modal with Apple Liquid Glass styling -->
-    <div id="weather-modal" class="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md flex items-center justify-center z-50 opacity-0 pointer-events-none transition-opacity duration-300" onclick="toggleWeatherModal()">
-        <div class="liquid-glass text-[#4A4A45] dark:text-[#eae8d9] p-6 rounded-3xl shadow-2xl max-w-sm w-11/12 sm:w-full text-center transform scale-95 transition-transform duration-300" id="weather-modal-card" onclick="event.stopPropagation()">
-            <div class="text-xs font-semibold tracking-widest uppercase mb-4 opacity-70">Weather Details</div>
-            
-            <div class="grid grid-cols-2 gap-3 text-xs tracking-wider mb-4">
-                <div class="flex flex-col items-center p-3 rounded-2xl liquid-glass-subtle">
-                    <i class="ph ph-wind text-xl mb-1 opacity-70"></i>
-                    <span class="opacity-60 text-[0.6rem]">WIND</span>
-                    <span id="modal-wind" class="font-bold mt-0.5">-- mph</span>
-                </div>
-                <div class="flex flex-col items-center p-3 rounded-2xl liquid-glass-subtle">
-                    <i class="ph ph-drop text-xl mb-1 opacity-70"></i>
-                    <span class="opacity-60 text-[0.6rem]">HUMIDITY</span>
-                    <span id="modal-humidity" class="font-bold mt-0.5">--%</span>
-                </div>
-                <div class="flex flex-col items-center p-3 rounded-2xl liquid-glass-subtle col-span-2">
-                    <i class="ph ph-cloud-rain text-xl mb-1 opacity-70"></i>
-                    <span class="opacity-60 text-[0.6rem]">PRECIPITATION CHANCE</span>
-                    <span id="modal-precip" class="font-bold mt-0.5">--%</span>
-                </div>
-            </div>
-
-            <!-- 5-Hour Temperature Trend -->
-            <div class="text-[0.65rem] font-semibold tracking-widest uppercase opacity-60 mb-2">5-Hour Forecast</div>
-            <div id="hourly-forecast" class="flex justify-between items-center liquid-glass-subtle p-3.5 rounded-2xl mb-5 text-xs">
-                <!-- Dynamically populated -->
-                <div class="opacity-50 text-[0.7rem] w-full text-center">Loading trend...</div>
-            </div>
-
-            <div class="flex items-center justify-center gap-3">
-                <button class="px-5 py-2 rounded-full text-xs font-medium liquid-glass-button" onclick="toggleTemperatureUnit();">
-                    Unit: <span id="modal-unit-label" class="font-semibold">Fahrenheit (&deg;F)</span>
-                </button>
-                <button class="px-5 py-2 rounded-full text-xs font-medium liquid-glass-button" onclick="toggleWeatherModal()">Close</button>
-            </div>
-        </div>
     </div>
 
     <!-- Location Status (Subtle) -->
     <div id="status-message" class="absolute bottom-4 text-xs tracking-widest opacity-40 z-10">
         Locating...
+    </div>
+
+    <!-- Weather Modal Overlay (Apple Liquid Glass) -->
+    <div id="weather-modal" class="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity duration-300" onclick="if(event.target === this) toggleWeatherModal()">
+        <div id="weather-modal-card" class="liquid-glass rounded-3xl p-6 w-full max-w-xs sm:max-w-sm flex flex-col gap-4 transform scale-95 transition-transform duration-300">
+            <!-- Header -->
+            <div class="flex justify-between items-center">
+                <span class="text-xs font-bold tracking-widest uppercase opacity-70">Weather Details</span>
+                <button onclick="toggleWeatherModal()" class="w-7 h-7 rounded-full flex items-center justify-center liquid-glass-button text-sm">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                <div class="liquid-glass-subtle rounded-2xl p-2.5 flex flex-col items-center">
+                    <i class="ph ph-wind text-lg opacity-70 mb-1"></i>
+                    <span class="text-[0.65rem] opacity-60 uppercase tracking-wider">Wind</span>
+                    <span id="modal-wind" class="font-bold mt-0.5">-- mph</span>
+                </div>
+                <div class="liquid-glass-subtle rounded-2xl p-2.5 flex flex-col items-center">
+                    <i class="ph ph-drop text-lg opacity-70 mb-1"></i>
+                    <span class="text-[0.65rem] opacity-60 uppercase tracking-wider">Humidity</span>
+                    <span id="modal-humidity" class="font-bold mt-0.5">--%</span>
+                </div>
+                <div class="liquid-glass-subtle rounded-2xl p-2.5 flex flex-col items-center">
+                    <i class="ph ph-cloud-rain text-lg opacity-70 mb-1"></i>
+                    <span class="text-[0.65rem] opacity-60 uppercase tracking-wider">Precip</span>
+                    <span id="modal-precip" class="font-bold mt-0.5">--%</span>
+                </div>
+            </div>
+
+            <!-- 5-Hour Forecast Strip -->
+            <div class="liquid-glass-subtle rounded-2xl p-3 flex flex-col gap-2">
+                <span class="text-[0.65rem] font-bold tracking-widest uppercase opacity-60 text-center">5-Hour Trend</span>
+                <div id="hourly-forecast" class="flex justify-between items-center px-1 text-xs">
+                    <!-- Hourly items rendered dynamically -->
+                </div>
+            </div>
+
+            <!-- Unit Switcher Button -->
+            <button onclick="toggleTemperatureUnit()" class="liquid-glass-button py-2.5 px-4 rounded-2xl text-xs font-semibold tracking-wider flex items-center justify-center gap-2">
+                <i class="ph ph-arrows-clockwise text-sm opacity-70"></i>
+                <span>Switch to </span>
+                <span id="modal-unit-label">Celsius (&deg;C)</span>
+            </button>
+        </div>
     </div>
 
     <script>
@@ -452,6 +504,8 @@
             const tempEl = document.getElementById('temperature');
             const hlEl = document.getElementById('high-low');
 
+            if (!tempEl || !hlEl) return;
+
             const t = isCelsius ? fToC(weatherData.tempF) : weatherData.tempF;
             const h = isCelsius ? fToC(weatherData.highF) : weatherData.highF;
             const l = isCelsius ? fToC(weatherData.lowF) : weatherData.lowF;
@@ -464,14 +518,19 @@
 
             // Update modal details & hourly forecast
             if (weatherData.windMph !== null) {
-                document.getElementById('modal-wind').innerText = `${Math.round(weatherData.windMph)} mph`;
-                document.getElementById('modal-humidity').innerText = `${Math.round(weatherData.humidity)}%`;
-                document.getElementById('modal-precip').innerText = `${Math.round(weatherData.precipChance)}%`;
-                document.getElementById('modal-unit-label').innerHTML = isCelsius ? 'Celsius (&deg;C)' : 'Fahrenheit (&deg;F)';
+                const windEl = document.getElementById('modal-wind');
+                const humEl = document.getElementById('modal-humidity');
+                const precipEl = document.getElementById('modal-precip');
+                const unitEl = document.getElementById('modal-unit-label');
+
+                if (windEl) windEl.innerText = `${Math.round(weatherData.windMph)} mph`;
+                if (humEl) humEl.innerText = `${Math.round(weatherData.humidity)}%`;
+                if (precipEl) precipEl.innerText = `${Math.round(weatherData.precipChance)}%`;
+                if (unitEl) unitEl.innerHTML = isCelsius ? 'Fahrenheit (&deg;F)' : 'Celsius (&deg;C)';
                 
                 // Render 5-hour trend
                 const hourlyContainer = document.getElementById('hourly-forecast');
-                if (weatherData.hourly && weatherData.hourly.length >= 5) {
+                if (hourlyContainer && weatherData.hourly && weatherData.hourly.length >= 5) {
                     const currentHour = new Date().getHours();
                     let html = '';
                     for (let i = 0; i < 5; i++) {
