@@ -254,7 +254,7 @@
     <div id="star-container" class="fixed top-0 left-0 right-0 h-1/2 pointer-events-none opacity-0 transition-opacity duration-1000 z-0"></div>
 
     <!-- Main Container -->
-    <div class="flex flex-col items-center transition-opacity duration-1000 z-10 max-w-full px-4" id="app-container">
+    <div class="flex flex-col items-center transition-all duration-500 ease-in-out z-10 max-w-full px-4 transform" id="app-container">
         
         <!-- Location Display & Air Quality Indicator -->
         <div class="flex items-center gap-2 mb-2 px-3.5 py-1 rounded-full liquid-glass-subtle animate-entrance stagger-1">
@@ -276,7 +276,7 @@
         </div>
 
         <!-- Weather Display (Clickable for expanded details with Liquid Glass Pill effect) -->
-        <div class="flex items-center gap-6 sm:gap-8 mt-2 sm:mt-5 px-5 sm:px-6 py-2.5 sm:py-3 rounded-3xl liquid-glass-subtle cursor-pointer group hover:scale-[1.03] transition-all duration-300 animate-entrance stagger-4" onclick="toggleWeatherModal()" title="Click for weather details">
+        <div class="flex items-center gap-6 sm:gap-8 mt-2 sm:mt-5 px-5 sm:px-6 py-2.5 sm:py-3 rounded-3xl liquid-glass-subtle cursor-pointer group hover:scale-[1.03] transition-all duration-300 animate-entrance stagger-4" onclick="toggleWeatherDetails()" title="Click for weather details">
             <!-- Dynamic Weather Icon with ambient float -->
             <i class="ph ph-cloud-sun loading transition-all duration-500 animate-float text-3xl sm:text-5xl" id="weather-icon"></i>
             
@@ -339,47 +339,57 @@
         Locating...
     </div>
 
-    <!-- Weather Modal Overlay (Apple Liquid Glass) -->
-    <div id="weather-modal" class="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity duration-300" onclick="if(event.target === this) toggleWeatherModal()">
-        <div id="weather-modal-card" class="liquid-glass rounded-3xl p-6 w-full max-w-xs sm:max-w-sm flex flex-col gap-4 transform scale-95 transition-transform duration-300">
-            <!-- Header -->
-            <div class="flex justify-between items-center">
-                <span class="text-xs font-bold tracking-widest uppercase opacity-70">Weather Details</span>
-                <button onclick="toggleWeatherModal()" class="w-7 h-7 rounded-full flex items-center justify-center liquid-glass-button text-sm">
-                    <i class="ph ph-x"></i>
+    <!-- Weather Details Page (Slide-In View with Apple Liquid Glass) -->
+    <div id="details-container" class="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 sm:p-8 transition-all duration-500 ease-in-out transform translate-x-full opacity-0 pointer-events-none overflow-y-auto">
+        <div class="w-full max-w-xs sm:max-w-sm flex flex-col gap-4 my-auto">
+            <!-- Top Navigation Bar -->
+            <div class="flex items-center justify-between w-full">
+                <button onclick="toggleWeatherDetails()" class="liquid-glass-button flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold tracking-wider">
+                    <i class="ph ph-arrow-left text-sm"></i> Back
                 </button>
+                <span class="text-[0.65rem] font-bold tracking-[0.25em] uppercase opacity-70">Weather Overview</span>
+                <div class="w-14"></div>
+            </div>
+
+            <!-- Main Weather Overview Card -->
+            <div class="liquid-glass rounded-3xl p-6 flex flex-col items-center text-center gap-3 relative overflow-hidden">
+                <i class="ph ph-cloud-sun text-5xl animate-float" id="detail-weather-icon"></i>
+                <div>
+                    <div class="text-4xl sm:text-5xl font-bold tracking-wider" id="detail-temperature">--&deg;</div>
+                    <div class="text-xs tracking-widest opacity-60 mt-1" id="detail-high-low">H: --&deg; &nbsp; L: --&deg;</div>
+                </div>
             </div>
 
             <!-- Stats Grid -->
-            <div class="grid grid-cols-3 gap-2 text-center text-xs">
-                <div class="liquid-glass-subtle rounded-2xl p-2.5 flex flex-col items-center">
-                    <i class="ph ph-wind text-lg opacity-70 mb-1"></i>
+            <div class="grid grid-cols-3 gap-2.5 text-center text-xs">
+                <div class="liquid-glass-subtle rounded-2xl p-3 flex flex-col items-center justify-center">
+                    <i class="ph ph-wind text-xl opacity-75 mb-1 text-sky-400"></i>
                     <span class="text-[0.65rem] opacity-60 uppercase tracking-wider">Wind</span>
-                    <span id="modal-wind" class="font-bold mt-0.5">-- mph</span>
+                    <span id="modal-wind" class="font-bold mt-1">-- mph</span>
                 </div>
-                <div class="liquid-glass-subtle rounded-2xl p-2.5 flex flex-col items-center">
-                    <i class="ph ph-drop text-lg opacity-70 mb-1"></i>
+                <div class="liquid-glass-subtle rounded-2xl p-3 flex flex-col items-center justify-center">
+                    <i class="ph ph-drop text-xl opacity-75 mb-1 text-blue-400"></i>
                     <span class="text-[0.65rem] opacity-60 uppercase tracking-wider">Humidity</span>
-                    <span id="modal-humidity" class="font-bold mt-0.5">--%</span>
+                    <span id="modal-humidity" class="font-bold mt-1">--%</span>
                 </div>
-                <div class="liquid-glass-subtle rounded-2xl p-2.5 flex flex-col items-center">
-                    <i class="ph ph-cloud-rain text-lg opacity-70 mb-1"></i>
+                <div class="liquid-glass-subtle rounded-2xl p-3 flex flex-col items-center justify-center">
+                    <i class="ph ph-cloud-rain text-xl opacity-75 mb-1 text-indigo-400"></i>
                     <span class="text-[0.65rem] opacity-60 uppercase tracking-wider">Precip</span>
-                    <span id="modal-precip" class="font-bold mt-0.5">--%</span>
+                    <span id="modal-precip" class="font-bold mt-1">--%</span>
                 </div>
             </div>
 
             <!-- 5-Hour Forecast Strip -->
-            <div class="liquid-glass-subtle rounded-2xl p-3 flex flex-col gap-2">
-                <span class="text-[0.65rem] font-bold tracking-widest uppercase opacity-60 text-center">5-Hour Trend</span>
+            <div class="liquid-glass-subtle rounded-2xl p-4 flex flex-col gap-3">
+                <span class="text-[0.65rem] font-bold tracking-widest uppercase opacity-60 text-center">5-Hour Forecast Trend</span>
                 <div id="hourly-forecast" class="flex justify-between items-center px-1 text-xs">
                     <!-- Hourly items rendered dynamically -->
                 </div>
             </div>
 
             <!-- Unit Switcher Button -->
-            <button onclick="toggleTemperatureUnit()" class="liquid-glass-button py-2.5 px-4 rounded-2xl text-xs font-semibold tracking-wider flex items-center justify-center gap-2">
-                <i class="ph ph-arrows-clockwise text-sm opacity-70"></i>
+            <button onclick="toggleTemperatureUnit()" class="liquid-glass-button py-3 px-5 rounded-2xl text-xs font-semibold tracking-wider flex items-center justify-center gap-2">
+                <i class="ph ph-arrows-clockwise text-base opacity-70"></i>
                 <span>Switch to </span>
                 <span id="modal-unit-label">Celsius (&deg;C)</span>
             </button>
@@ -482,21 +492,25 @@
             renderWeather();
         }
 
-        function toggleWeatherModal() {
-            const modal = document.getElementById('weather-modal');
-            const card = document.getElementById('weather-modal-card');
-            const isOpen = modal.classList.contains('opacity-100');
+        function toggleWeatherDetails() {
+            const mainApp = document.getElementById('app-container');
+            const detailsPage = document.getElementById('details-container');
+            const isShowingDetails = detailsPage.classList.contains('translate-x-0');
 
-            if (isOpen) {
-                modal.classList.remove('opacity-100');
-                modal.classList.add('opacity-0', 'pointer-events-none');
-                card.classList.remove('scale-100');
-                card.classList.add('scale-95');
+            if (isShowingDetails) {
+                // Slide Main App back in, slide Details Page off to the right
+                mainApp.classList.remove('-translate-x-full', 'opacity-0', 'pointer-events-none');
+                mainApp.classList.add('translate-x-0', 'opacity-100');
+                
+                detailsPage.classList.remove('translate-x-0', 'opacity-100');
+                detailsPage.classList.add('translate-x-full', 'opacity-0', 'pointer-events-none');
             } else {
-                modal.classList.remove('opacity-0', 'pointer-events-none');
-                modal.classList.add('opacity-100');
-                card.classList.remove('scale-95');
-                card.classList.add('scale-100');
+                // Slide Main App off to the left, slide Details Page in from right
+                mainApp.classList.remove('translate-x-0', 'opacity-100');
+                mainApp.classList.add('-translate-x-full', 'opacity-0', 'pointer-events-none');
+                
+                detailsPage.classList.remove('translate-x-full', 'opacity-0', 'pointer-events-none');
+                detailsPage.classList.add('translate-x-0', 'opacity-100');
             }
         }
 
@@ -516,7 +530,13 @@
             tempEl.classList.remove('loading');
             hlEl.classList.remove('loading');
 
-            // Update modal details & hourly forecast
+            // Detail page header elements
+            const detailTemp = document.getElementById('detail-temperature');
+            const detailHl = document.getElementById('detail-high-low');
+            if (detailTemp) detailTemp.innerHTML = `${Math.round(t)}&deg;`;
+            if (detailHl) detailHl.innerHTML = `H: ${Math.round(h)}&deg; &nbsp; L: ${Math.round(l)}&deg;`;
+
+            // Update details page metrics
             if (weatherData.windMph !== null) {
                 const windEl = document.getElementById('modal-wind');
                 const humEl = document.getElementById('modal-humidity');
@@ -541,8 +561,8 @@
                         const tempVal = isCelsius ? fToC(item.temp) : item.temp;
                         html += `
                             <div class="flex flex-col items-center">
-                                <span class="opacity-50 text-[0.6rem]">${hr}${ampm}</span>
-                                <span class="font-bold my-0.5">${Math.round(tempVal)}&deg;</span>
+                                <span class="opacity-50 text-[0.6rem] uppercase tracking-wider">${hr}${ampm}</span>
+                                <span class="font-bold my-0.5 text-sm">${Math.round(tempVal)}&deg;</span>
                             </div>
                         `;
                     }
@@ -680,7 +700,11 @@
 
                     const weatherCode = data.current.weather_code;
                     const iconEl = document.getElementById('weather-icon');
-                    iconEl.className = `ph ${getWeatherIconClass(weatherCode, isNight)} transition-all duration-500 animate-float`;
+                    const detailIconEl = document.getElementById('detail-weather-icon');
+                    const iconClass = getWeatherIconClass(weatherCode, isNight);
+
+                    if (iconEl) iconEl.className = `ph ${iconClass} transition-all duration-500 animate-float text-3xl sm:text-5xl`;
+                    if (detailIconEl) detailIconEl.className = `ph ${iconClass} text-5xl animate-float`;
                     
                     document.getElementById('status-message').innerText = "";
                 }
