@@ -101,12 +101,12 @@
     <!-- Style Filter Dropdown -->
     <div id="styleFilterContainer" class="absolute top-6 left-6 md:top-10 md:left-10 z-30">
         <select id="styleFilter" class="bg-transparent border-none text-gray-800 font-['Times_New_Roman'] text-lg md:text-xl outline-none cursor-pointer hover:opacity-70 transition-opacity">
-            <option value="painting">All Paintings</option>
-            <option value="impressionism painting">Impressionism</option>
-            <option value="renaissance painting">Renaissance</option>
-            <option value="modern painting">Modern Art</option>
-            <option value="portrait painting">Portraits</option>
-            <option value="landscape painting">Landscapes</option>
+            <option value="painting" data-min="0" data-max="2025">All Paintings</option>
+            <option value="Impressionism" data-min="1850" data-max="1930">Impressionism</option>
+            <option value="Renaissance" data-min="1300" data-max="1650">Renaissance</option>
+            <option value="Modernism" data-min="1880" data-max="1980">Modern Art</option>
+            <option value="portrait" data-min="0" data-max="2025">Portraits</option>
+            <option value="landscape" data-min="0" data-max="2025">Landscapes</option>
         </select>
     </div>
 
@@ -330,6 +330,25 @@
             
             currentIndex += direction;
             
+            // If you swipe left (previous) on the first painting, wrap to the end of the current batch
+            if (currentIndex < 0) {
+                currentIndex = artworks.length - 1;
+                loadAndDisplayArtwork(currentIndex, direction);
+                return;
+            }
+            
+            // If you swipe past the last painting, fetch a brand new batch!
+            if (currentIndex >= artworks.length) {
+                isTransitioning = true; 
+                currentWrapper.querySelector('.desc-content').innerHTML = "Fetching a new gallery wall...";
+                
+                // Fetch new art using whatever filter is currently selected
+                fetchArtworks(styleFilter.value); 
+                return;
+            }
+            
+            loadAndDisplayArtwork(currentIndex, direction);
+        }
             // Wrap around logic
             if (currentIndex >= artworks.length) currentIndex = 0;
             if (currentIndex < 0) currentIndex = artworks.length - 1;
