@@ -57,27 +57,24 @@
         
         /* NEW: Frame & Image Styling */
         .art-frame {
-            /* The "Matting" (off-white border around the painting inside the frame) */
+            /* The "Matting" (off-white border around the painting) */
             background-color: #fdfbf7;
             padding: 16px; 
 
-            /* Default Premium CSS Wood Frame */
-            border: 16px solid #4a3424; 
-            border-style: ridge;
-            box-shadow: 
-                inset 0px 0px 10px rgba(0,0,0,0.2), /* Inner shadow of frame onto matting */
-                0px 15px 35px rgba(0,0,0,0.3);      /* Outer shadow of frame onto the wall */
-            
             /* CUSTOM IMAGE FRAME */
-            /* If the image fails to load (404), it will fall back to a solid gold border */
+            /* The solid color acts as a fallback while the image loads */
             border: 40px solid #c5a059; 
-            border-image-source: url('./my-frame.png');
+            border-image-source: url('my-frame.png');
             border-image-slice: 60;
             border-image-width: 40px;
             border-image-repeat: stretch;
+            
+            box-shadow: 
+                inset 0px 0px 10px rgba(0,0,0,0.2), 
+                0px 15px 35px rgba(0,0,0,0.3);      
 
             position: relative;
-            overflow: hidden; /* Keeps the zoom effect cleanly INSIDE the frame! */
+            overflow: hidden; 
             display: inline-block;
             border-radius: 2px;
         }
