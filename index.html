@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Artwork Showcase</title>
+    
+    <!-- Apple Web App Icon -->
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -54,6 +58,11 @@
             opacity: 0.8;
             transform: scale(1.05);
         }
+
+        /* Hides the description box dynamically during the slideshow if selected */
+        body.hide-info .description-card {
+            display: none !important;
+        }
         
         /* NEW: Frame & Image Styling */
         .art-frame {
@@ -102,9 +111,11 @@
     </div>
 
     <!-- Slideshow Button -->
-    <button id="slideshowBtn" class="absolute bottom-6 right-6 md:bottom-10 md:right-10 slideshow-btn">
-        Start Slideshow
-    </button>
+    <select id="slideshowBtn" class="absolute bottom-6 right-6 md:bottom-10 md:right-10 slideshow-btn outline-none cursor-pointer appearance-none text-center px-4 py-2">
+        <option value="" disabled selected hidden>Start Slideshow...</option>
+        <option value="with-info">With Info Box</option>
+        <option value="without-info">Without Info Box</option>
+    </select>
 
     <!-- Left Navigation Arrow -->
     <button id="prevBtn" class="absolute left-4 md:left-10 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-gray-800 transition-colors duration-300 z-20 focus:outline-none">
@@ -140,6 +151,7 @@
         let isTransitioning = true; // Prevent actions until loaded
         let slideshowInterval = null;
         let isSlideshowActive = false;
+        let slideshowMode = null;
 
         // DOM Elements
         let currentWrapper = document.getElementById('artworkWrapper');
@@ -393,12 +405,18 @@
         }
 
         // Slideshow Logic
-        function startSlideshow() {
+        function startSlideshow(mode) {
             isSlideshowActive = true;
+            slideshowMode = mode;
+            
             slideshowBtn.style.display = 'none';
             prevBtn.style.display = 'none';
             nextBtn.style.display = 'none';
             styleFilterContainer.style.display = 'none';
+            
+            if (mode === 'without-info') {
+                document.body.classList.add('hide-info');
+            }
             
             // Advance automatically every 2 minutes (120,000 milliseconds)
             slideshowInterval = setInterval(() => {
@@ -409,16 +427,24 @@
         function stopSlideshow() {
             if (!isSlideshowActive) return;
             isSlideshowActive = false;
+            slideshowMode = null;
             
             slideshowBtn.style.display = 'block';
+            slideshowBtn.value = ""; // Reset the dropdown back to the placeholder
             prevBtn.style.display = 'block';
             nextBtn.style.display = 'block';
             styleFilterContainer.style.display = 'block';
             
+            document.body.classList.remove('hide-info');
+            
             clearInterval(slideshowInterval);
         }
 
-        slideshowBtn.addEventListener('click', startSlideshow);
+        slideshowBtn.addEventListener('change', (e) => {
+            if (e.target.value) {
+                startSlideshow(e.target.value);
+            }
+        });
 
         // Event Listeners for Keyboard (Left and Right Arrows, Spacebar for Slideshow Exit)
         window.addEventListener('keydown', (e) => {
