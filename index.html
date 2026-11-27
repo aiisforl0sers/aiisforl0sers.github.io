@@ -117,10 +117,17 @@
         <option value="without-info">Without Info Box</option>
     </select>
 
-    <!-- Left Navigation Arrow -->
-    <button id="prevBtn" class="absolute left-4 md:left-10 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-gray-800 transition-colors duration-300 z-20 focus:outline-none">
+   <!-- Left Navigation Arrow -->
+    <button id="prevBtn" class="hidden md:block absolute left-4 md:left-10 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-gray-800 transition-colors duration-300 z-20 focus:outline-none">
         <svg class="w-12 h-12 md:w-16 md:h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"></path>
+        </svg>
+    </button>
+
+    <!-- Right Navigation Arrow -->
+    <button id="nextBtn" class="hidden md:block absolute right-4 md:right-10 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-gray-800 transition-colors duration-300 z-20 focus:outline-none">
+        <svg class="w-12 h-12 md:w-16 md:h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"></path>
         </svg>
     </button>
 
@@ -138,12 +145,7 @@
         </div>
     </div>
 
-    <!-- Right Navigation Arrow -->
-    <button id="nextBtn" class="absolute right-4 md:right-10 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-gray-800 transition-colors duration-300 z-20 focus:outline-none">
-        <svg class="w-12 h-12 md:w-16 md:h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"></path>
-        </svg>
-    </button>
+   
 
     <script>
         let artworks = [];
