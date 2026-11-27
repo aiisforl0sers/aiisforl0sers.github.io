@@ -1,1 +1,5 @@
-# aiisforl0sers.github.io
+Linger is a thoughtfully curated minimalistic museum experience that invites visitors to embrace a slower, more intentional approach to engaging with art. In a world that often prioritizes speed and immediacy, Linger encourages individuals to take a step back, allowing them to fully immerse themselves in the nuances and subtleties of each piece on display. 
+
+Through carefully designed spaces and an intentional layout, the experience promotes deep contemplation, fostering a connection between the observer and the artwork. By minimizing distractions and emphasizing simplicity, Linger not only enhances the appreciation of art but also offers an opportunity for personal reflection and understanding. 
+
+This innovative approach serves as a reminder that true engagement with art goes beyond mere visual consumption; it involves pausing, reflecting, and allowing oneself to be moved by the aesthetic and emotional qualities of the works. Ultimately, Linger is more than just a museum experience; it is an invitation to rediscover the joy of slow living and the beauty of art in a profound and meaningful way.
