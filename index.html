@@ -140,14 +140,14 @@
         let artworks = [];
         let currentIndex = 0;
         let isTransitioning = true; 
-        let slideshowInterval = null;
         let isSlideshowActive = false;
         let slideshowMode = null;
 
         // Viewing Timer Variables
         let canNavigate = false;
         let artTimerInterval = null;
-        const VIEWING_TIME = 30; // 30 seconds
+        const VIEWING_TIME = 30; // 30 seconds for manual viewing lock
+        const SLIDESHOW_TIME = 120; // 2 minutes between auto-slides
 
         // DOM Elements
         let currentWrapper = document.getElementById('artworkWrapper');
@@ -160,41 +160,58 @@
 
         currentWrapper.querySelector('.desc-content').innerHTML = "Fetching masterpieces from the Art Institute of Chicago...";
 
-        // Timer Logic
-        function startViewingTimer() {
+        // Unified Timer Logic
+        function startTimer() {
             clearInterval(artTimerInterval);
             canNavigate = false;
-            let timeLeft = VIEWING_TIME;
+            
+            let isSlideshow = isSlideshowActive;
+            let timeLeft = isSlideshow ? SLIDESHOW_TIME : VIEWING_TIME;
             
             timerEl.style.opacity = '1';
-            timerEl.style.color = '#6b7280'; // Reset to gray-500
-            timerEl.innerHTML = `0:${timeLeft.toString().padStart(2, '0')}`;
+            timerEl.style.color = '#6b7280'; 
             
-            // Dim navigation arrows to indicate they are locked
-            prevBtn.style.opacity = '0.2';
-            nextBtn.style.opacity = '0.2';
-            prevBtn.style.cursor = 'not-allowed';
-            nextBtn.style.cursor = 'not-allowed';
+            // Only lock navigation buttons if we aren't in slideshow mode 
+            // (Slideshow mode hides them entirely)
+            if (!isSlideshow) {
+                prevBtn.style.opacity = '0.2';
+                nextBtn.style.opacity = '0.2';
+                prevBtn.style.cursor = 'not-allowed';
+                nextBtn.style.cursor = 'not-allowed';
+            }
+
+            const updateTimerDisplay = () => {
+                const m = Math.floor(timeLeft / 60);
+                const s = timeLeft % 60;
+                timerEl.innerHTML = `${m}:${s.toString().padStart(2, '0')}`;
+            };
+            
+            updateTimerDisplay();
 
             artTimerInterval = setInterval(() => {
                 timeLeft--;
                 if (timeLeft > 0) {
-                    timerEl.innerHTML = `0:${timeLeft.toString().padStart(2, '0')}`;
+                    updateTimerDisplay();
                 } else {
                     clearInterval(artTimerInterval);
                     canNavigate = true;
-                    timerEl.innerHTML = "You may move on";
                     
-                    // Restore navigation arrows
-                    prevBtn.style.opacity = '1';
-                    nextBtn.style.opacity = '1';
-                    prevBtn.style.cursor = 'pointer';
-                    nextBtn.style.cursor = 'pointer';
-                    
-                    // Gently fade out the message
-                    setTimeout(() => {
-                        if (canNavigate) timerEl.style.opacity = '0';
-                    }, 2500);
+                    if (isSlideshowActive) {
+                        navigate(1); // Auto-advance for slideshow
+                    } else {
+                        timerEl.innerHTML = "You may move on";
+                        
+                        // Restore navigation arrows
+                        prevBtn.style.opacity = '1';
+                        nextBtn.style.opacity = '1';
+                        prevBtn.style.cursor = 'pointer';
+                        nextBtn.style.cursor = 'pointer';
+                        
+                        // Gently fade out the message if we are still in manual mode
+                        setTimeout(() => {
+                            if (canNavigate && !isSlideshowActive) timerEl.style.opacity = '0';
+                        }, 2500);
+                    }
                 }
             }, 1000);
         }
@@ -245,7 +262,6 @@
         styleFilter.addEventListener('change', (e) => {
             if (isTransitioning) return;
             
-            // Clear timer restrictions on category change
             clearInterval(artTimerInterval);
             timerEl.style.opacity = '0';
             canNavigate = true; 
@@ -297,14 +313,14 @@
                     currentWrapper.classList.remove('opacity-0');
                     attachZoom(artworkImage);
                     isTransitioning = false;
-                    startViewingTimer(); // Start the 30-second lock
+                    startTimer(); 
                 };
 
                 artworkImage.onerror = () => {
                     artworkDesc.innerHTML = "Error loading high-res image. Skipping to next...";
                     currentWrapper.classList.remove('opacity-0');
                     isTransitioning = false; 
-                    canNavigate = true; // Allow skip
+                    canNavigate = true; 
                     setTimeout(() => navigate(1), 1500);
                 };
 
@@ -339,14 +355,14 @@
                     currentWrapper.remove();
                     currentWrapper = newWrapper;
                     isTransitioning = false;
-                    startViewingTimer(); // Start the 30-second lock on the new painting
+                    startTimer(); 
                 }, 300);
             };
 
             newImage.onerror = () => {
                 newWrapper.remove();
                 isTransitioning = false; 
-                canNavigate = true; // Allow skip
+                canNavigate = true; 
                 setTimeout(() => navigate(direction), 1500);
             };
 
@@ -356,7 +372,6 @@
         function navigate(direction) {
             if (isTransitioning || artworks.length === 0) return;
             
-            // Check if viewing time has elapsed
             if (!canNavigate) {
                 // Flash the timer red to remind the user to slow down
                 timerEl.style.color = '#ef4444'; 
@@ -472,12 +487,8 @@
                 document.body.classList.add('hide-info');
             }
             
-            // Advance automatically every 2 minutes (120,000 milliseconds)
-            slideshowInterval = setInterval(() => {
-                // Bypass the lock slightly for automatic progression, though 120s > 30s anyway.
-                if (!canNavigate) canNavigate = true; 
-                navigate(1);
-            }, 120000); 
+            // Initiate the slideshow countdown logic
+            startTimer();
         }
 
         function stopSlideshow() {
@@ -488,20 +499,20 @@
             slideshowBtn.style.display = 'block';
             slideshowBtn.value = ""; 
             
-            // Only restore buttons visibly if the time lock is over
-            if (canNavigate) {
-                prevBtn.style.display = 'block';
-                nextBtn.style.display = 'block';
-            } else {
-                prevBtn.style.display = 'block';
-                nextBtn.style.display = 'block';
-                // They will remain dimmed due to the inline opacity styles set in startViewingTimer
-            }
+            prevBtn.style.display = 'block';
+            nextBtn.style.display = 'block';
             
             styleFilterContainer.style.display = 'block';
             document.body.classList.remove('hide-info');
             
-            clearInterval(slideshowInterval);
+            // Immediately unlock manual navigation upon exiting slideshow
+            clearInterval(artTimerInterval);
+            canNavigate = true;
+            timerEl.style.opacity = '0';
+            prevBtn.style.opacity = '1';
+            nextBtn.style.opacity = '1';
+            prevBtn.style.cursor = 'pointer';
+            nextBtn.style.cursor = 'pointer';
         }
 
         slideshowBtn.addEventListener('change', (e) => {
