@@ -21,7 +21,7 @@
         }
 
         .description-card {
-            background-color: #E8E3D7;
+            background-color: transparent;
             border-radius: 20px;
             padding: 16px 24px;
             box-shadow: none;
@@ -29,7 +29,7 @@
             z-index: 10;
             text-align: center;
             color: #1f2937;
-            border: 1px solid #d8d3c7; /* Subtle definition for the flat card */
+            border: none; /* Removed so it blends seamlessly with the page background */
         }
 
         /* Responsive adjustments for the card */
@@ -501,7 +501,7 @@
         }, { passive: true });
 
         function handleSwipe() {
-            const swipeThreshold = 15; // Lowered to feel more like a quick scroll/flick
+            const swipeThreshold = 15; // Minimum pixels to count as a swipe
             if (touchEndX < touchStartX - swipeThreshold) {
                 if (isSlideshowActive) stopSlideshow();
                 navigate(1); // Swipe left -> Next
