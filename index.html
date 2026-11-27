@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Artwork Showcase</title>
     
-    <!-- Apple Web App Icon -->
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -13,7 +12,7 @@
             font-family: 'Times New Roman', serif;
             background-color: #ffffff;
             margin: 0;
-            overflow: hidden; /* Prevents scrollbars from overlapping cards */
+            overflow: hidden; 
         }
         
         .slide-transition {
@@ -29,10 +28,9 @@
             z-index: 10;
             text-align: center;
             color: #1f2937;
-            border: none; /* Removed so it blends seamlessly with the page background */
+            border: none;
         }
 
-        /* Responsive adjustments for the card */
         @media (max-width: 768px) {
             .description-card {
                 width: 95%;
@@ -58,29 +56,21 @@
             transform: scale(1.05);
         }
 
-        /* Hides the description box dynamically during the slideshow if selected */
         body.hide-info .description-card {
             display: none !important;
         }
         
-        /* NEW: Frame & Image Styling */
         .art-frame {
-            /* The "Matting" (off-white border around the painting) */
             background-color: #fdfbf7;
             padding: 16px; 
-
-            /* CUSTOM IMAGE FRAME */
-            /* The solid color acts as a fallback while the image loads */
             border: 40px solid #c5a059; 
             border-image-source: url('my-frame.png');
             border-image-slice: 60;
             border-image-width: 40px;
             border-image-repeat: stretch;
-            
             box-shadow: 
                 inset 0px 0px 10px rgba(0,0,0,0.2), 
                 0px 15px 35px rgba(0,0,0,0.3);      
-
             position: relative;
             overflow: hidden; 
             display: inline-block;
@@ -88,7 +78,7 @@
         }
 
         .artwork-image {
-            max-height: 60vh; /* Reduced slightly to make room for the frame */
+            max-height: 60vh;
             width: auto;
             max-width: 100%;
             display: block;
@@ -109,6 +99,11 @@
         </select>
     </div>
 
+    <!-- Required Viewing Timer -->
+    <div id="artTimer" class="absolute top-6 right-6 md:top-10 md:right-10 z-30 font-['Times_New_Roman'] text-gray-500 text-lg md:text-xl transition-opacity duration-500 opacity-0 pointer-events-none tracking-wide">
+        0:30
+    </div>
+
     <!-- Slideshow Button -->
     <select id="slideshowBtn" class="absolute bottom-6 right-6 md:bottom-10 md:right-10 slideshow-btn outline-none cursor-pointer appearance-none text-center px-4 py-2">
         <option value="" disabled selected hidden>Start Slideshow...</option>
@@ -117,7 +112,7 @@
     </select>
 
     <!-- Left Navigation Arrow -->
-    <button id="prevBtn" class="hidden md:block absolute left-4 md:left-10 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-gray-800 transition-colors duration-300 z-20 focus:outline-none">
+    <button id="prevBtn" class="hidden md:block absolute left-4 md:left-10 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-gray-800 transition-all duration-300 z-20 focus:outline-none">
         <svg class="w-12 h-12 md:w-16 md:h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"></path>
         </svg>
@@ -125,20 +120,17 @@
 
     <!-- Artwork Container -->
     <div id="artworkWrapper" class="absolute max-w-[85vw] md:max-w-[70vw] slide-transition opacity-0 translate-x-0 flex flex-col items-center">
-        <!-- Dynamic Frame Wrapper -->
         <div class="art-frame">
-            <!-- Main Image -->
             <img src="" alt="Artwork" class="artwork-image">
         </div>
         
-        <!-- Description Card (Now acts as a placard below) -->
         <div class="description-card max-w-[320px] md:max-w-[500px]">
             <div class="desc-content text-sm md:text-base leading-relaxed"></div>
         </div>
     </div>
 
     <!-- Right Navigation Arrow -->
-    <button id="nextBtn" class="hidden md:block absolute right-4 md:right-10 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-gray-800 transition-colors duration-300 z-20 focus:outline-none">
+    <button id="nextBtn" class="hidden md:block absolute right-4 md:left-auto right-4 md:right-10 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-gray-800 transition-all duration-300 z-20 focus:outline-none">
         <svg class="w-12 h-12 md:w-16 md:h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"></path>
         </svg>
@@ -147,10 +139,15 @@
     <script>
         let artworks = [];
         let currentIndex = 0;
-        let isTransitioning = true; // Prevent actions until loaded
+        let isTransitioning = true; 
         let slideshowInterval = null;
         let isSlideshowActive = false;
         let slideshowMode = null;
+
+        // Viewing Timer Variables
+        let canNavigate = false;
+        let artTimerInterval = null;
+        const VIEWING_TIME = 30; // 30 seconds
 
         // DOM Elements
         let currentWrapper = document.getElementById('artworkWrapper');
@@ -159,11 +156,49 @@
         const slideshowBtn = document.getElementById('slideshowBtn');
         const styleFilterContainer = document.getElementById('styleFilterContainer');
         const styleFilter = document.getElementById('styleFilter');
+        const timerEl = document.getElementById('artTimer');
 
-        // Initial Loading State
         currentWrapper.querySelector('.desc-content').innerHTML = "Fetching masterpieces from the Art Institute of Chicago...";
 
-        // Fetch artworks with strict historical date filtering
+        // Timer Logic
+        function startViewingTimer() {
+            clearInterval(artTimerInterval);
+            canNavigate = false;
+            let timeLeft = VIEWING_TIME;
+            
+            timerEl.style.opacity = '1';
+            timerEl.style.color = '#6b7280'; // Reset to gray-500
+            timerEl.innerHTML = `0:${timeLeft.toString().padStart(2, '0')}`;
+            
+            // Dim navigation arrows to indicate they are locked
+            prevBtn.style.opacity = '0.2';
+            nextBtn.style.opacity = '0.2';
+            prevBtn.style.cursor = 'not-allowed';
+            nextBtn.style.cursor = 'not-allowed';
+
+            artTimerInterval = setInterval(() => {
+                timeLeft--;
+                if (timeLeft > 0) {
+                    timerEl.innerHTML = `0:${timeLeft.toString().padStart(2, '0')}`;
+                } else {
+                    clearInterval(artTimerInterval);
+                    canNavigate = true;
+                    timerEl.innerHTML = "You may move on";
+                    
+                    // Restore navigation arrows
+                    prevBtn.style.opacity = '1';
+                    nextBtn.style.opacity = '1';
+                    prevBtn.style.cursor = 'pointer';
+                    nextBtn.style.cursor = 'pointer';
+                    
+                    // Gently fade out the message
+                    setTimeout(() => {
+                        if (canNavigate) timerEl.style.opacity = '0';
+                    }, 2500);
+                }
+            }, 1000);
+        }
+
         async function fetchArtworks(searchQuery = "painting", forceFirstPage = false, minYear = 0, maxYear = 2025) {
             try {
                 const maxPage = searchQuery === "painting" ? 10 : 3;
@@ -175,7 +210,6 @@
                 if (data && data.data) {
                     artworks = data.data.filter(art => {
                         if (!art.image_id) return false;
-                        
                         const year = art.date_start;
                         if (minYear > 0 || maxYear < 2025) {
                             if (!year) return false; 
@@ -208,9 +242,14 @@
             }
         }
 
-        // Filter Event Listener
         styleFilter.addEventListener('change', (e) => {
             if (isTransitioning) return;
+            
+            // Clear timer restrictions on category change
+            clearInterval(artTimerInterval);
+            timerEl.style.opacity = '0';
+            canNavigate = true; 
+            
             isTransitioning = true;
             currentWrapper.classList.add('opacity-0'); 
             
@@ -225,23 +264,17 @@
             }, 500); 
         });
 
-        // Function to load and render a specific artwork with transitions
         function loadAndDisplayArtwork(index, direction = 0) {
             isTransitioning = true;
             
             const data = artworks[index];
-            
-            // Safely extract properties
             const title = data.title || 'Unknown Title';
             const date = data.date_display || 'Unknown Date';
             const artist = data.artist_title || 'Unknown Artist';
-            
-            // Prioritize alt_text, fallback to medium_display
             const description = (data.thumbnail && data.thumbnail.alt_text) 
                                 ? data.thumbnail.alt_text 
                                 : (data.medium_display || '');
 
-            // Update the description HTML with a premium gallery layout
             const artworkLink = `https://www.artic.edu/artworks/${data.id}`;
             const formattedDesc = `
                 <div class="mb-1">
@@ -253,26 +286,25 @@
                 <div class="text-sm text-gray-700 leading-relaxed">${description}</div>
             `;
             
-            // Construct the IIIF Image URL
             const imageUrl = `https://www.artic.edu/iiif/2/${data.image_id}/full/843,/0/default.jpg`;
             
             if (direction === 0) {
-                // Initial Load (Fade In)
                 const artworkImage = currentWrapper.querySelector('img');
                 const artworkDesc = currentWrapper.querySelector('.desc-content');
-                
                 artworkDesc.innerHTML = formattedDesc;
                 
                 artworkImage.onload = () => {
                     currentWrapper.classList.remove('opacity-0');
                     attachZoom(artworkImage);
                     isTransitioning = false;
+                    startViewingTimer(); // Start the 30-second lock
                 };
 
                 artworkImage.onerror = () => {
                     artworkDesc.innerHTML = "Error loading high-res image. Skipping to next...";
-                    currentWrapper.classList.remove('opacity-0'); // Ensure the error text is visible
-                    isTransitioning = false; // FIX: Release the transition lock
+                    currentWrapper.classList.remove('opacity-0');
+                    isTransitioning = false; 
+                    canNavigate = true; // Allow skip
                     setTimeout(() => navigate(1), 1500);
                 };
 
@@ -280,62 +312,59 @@
                 return;
             }
 
-            // For navigation, create a new wrapper to slide in
             const newWrapper = currentWrapper.cloneNode(true);
-            
-            // Set starting position based on direction
-            // Next (1): start off-screen right
-            // Prev (-1): start off-screen left
             const startClass = direction === 1 ? 'translate-x-[150vw]' : '-translate-x-[150vw]';
             
-            // Initialize the new wrapper's classes
             newWrapper.className = `absolute max-w-[85vw] md:max-w-[70vw] flex flex-col items-center slide-transition opacity-100 ${startClass}`;
             
             const newImage = newWrapper.querySelector('img');
             const newDesc = newWrapper.querySelector('.desc-content');
-            
             newDesc.innerHTML = formattedDesc;
 
-            // Append to the DOM so it can load and be ready to slide
             document.body.appendChild(newWrapper);
             
-            // Wait for the new image to fully load before triggering the slide animation
             newImage.onload = () => {
                 attachZoom(newImage);
-                // Force reflow to ensure the starting position is registered by the browser
                 void newWrapper.offsetWidth;
                 
-                // Determine exit direction for current artwork
                 const exitClass = direction === 1 ? '-translate-x-[150vw]' : 'translate-x-[150vw]';
                 
-                // Trigger simultaneous slide
                 currentWrapper.classList.remove('translate-x-0');
                 currentWrapper.classList.add(exitClass);
                 
                 newWrapper.classList.remove(startClass);
                 newWrapper.classList.add('translate-x-0');
                 
-                // Clean up old artwork after animation finishes (700ms matches CSS transition)
                 setTimeout(() => {
                     currentWrapper.remove();
                     currentWrapper = newWrapper;
                     isTransitioning = false;
+                    startViewingTimer(); // Start the 30-second lock on the new painting
                 }, 300);
             };
 
             newImage.onerror = () => {
                 newWrapper.remove();
-                isTransitioning = false; // FIX: Release the transition lock
-                // If it fails to load, gracefully wait a moment then try next
+                isTransitioning = false; 
+                canNavigate = true; // Allow skip
                 setTimeout(() => navigate(direction), 1500);
             };
 
             newImage.src = imageUrl;
         }
 
-        // Function to handle moving left or right through the array
         function navigate(direction) {
             if (isTransitioning || artworks.length === 0) return;
+            
+            // Check if viewing time has elapsed
+            if (!canNavigate) {
+                // Flash the timer red to remind the user to slow down
+                timerEl.style.color = '#ef4444'; 
+                setTimeout(() => {
+                    if (!canNavigate) timerEl.style.color = '#6b7280';
+                }, 300);
+                return;
+            }
             
             currentIndex += direction;
             
@@ -347,6 +376,9 @@
             
             if (currentIndex >= artworks.length) {
                 isTransitioning = true; 
+                canNavigate = true;
+                clearInterval(artTimerInterval);
+                timerEl.style.opacity = '0';
                 currentWrapper.querySelector('.desc-content').innerHTML = "Fetching a new gallery wall...";
                 
                 const selectedOption = styleFilter.options[styleFilter.selectedIndex];
@@ -362,17 +394,14 @@
             loadAndDisplayArtwork(currentIndex, direction);
         }
 
-        // Event Listeners for Buttons
         prevBtn.addEventListener('click', () => navigate(-1));
         nextBtn.addEventListener('click', () => navigate(1));
 
-        // Interactive Zoom Logic
         function attachZoom(imgElement) {
             imgElement.style.transition = "transform 0.4s ease-out";
             imgElement.style.cursor = "zoom-in";
-            imgElement.style.position = "relative"; // Ensure z-index scaling works
+            imgElement.style.position = "relative";
 
-            // 1. Mouse Events (Desktop)
             imgElement.addEventListener("mousemove", function(e) {
                 const x = (e.offsetX / this.offsetWidth) * 100;
                 const y = (e.offsetY / this.offsetHeight) * 100;
@@ -386,33 +415,29 @@
                 resetZoom(this);
             });
 
-            // 2. Touch Events (Mobile)
             imgElement.addEventListener("touchstart", function(e) {
-                e.stopPropagation(); // Prevents the touch from being counted as a swipe
+                e.stopPropagation(); 
                 handleTouchZoom(e, this);
             }, { passive: true });
 
             imgElement.addEventListener("touchmove", function(e) {
-                e.stopPropagation(); // Prevents the drag from being counted as a swipe
+                e.stopPropagation(); 
                 handleTouchZoom(e, this);
             }, { passive: true });
 
             imgElement.addEventListener("touchend", function(e) {
-                e.stopPropagation(); // Stops the release from triggering the next painting
+                e.stopPropagation(); 
                 resetZoom(this);
             });
 
-            // Helper for touch zoom calculations
             function handleTouchZoom(e, img) {
                 if (e.touches.length > 0) {
                     const touch = e.touches[0];
                     const rect = img.getBoundingClientRect();
                     
-                    // Calculate touch position relative to the image bounding box
                     let x = ((touch.clientX - rect.left) / rect.width) * 100;
                     let y = ((touch.clientY - rect.top) / rect.height) * 100;
                     
-                    // Clamp values so zoom doesn't drift off screen
                     x = Math.max(0, Math.min(100, x));
                     y = Math.max(0, Math.min(100, y));
 
@@ -422,7 +447,6 @@
                 }
             }
 
-            // Helper to reset zoom state
             function resetZoom(img) {
                 img.style.transform = "scale(1)";
                 img.style.zIndex = "1";
@@ -435,7 +459,6 @@
             }
         }
 
-        // Slideshow Logic
         function startSlideshow(mode) {
             isSlideshowActive = true;
             slideshowMode = mode;
@@ -451,6 +474,8 @@
             
             // Advance automatically every 2 minutes (120,000 milliseconds)
             slideshowInterval = setInterval(() => {
+                // Bypass the lock slightly for automatic progression, though 120s > 30s anyway.
+                if (!canNavigate) canNavigate = true; 
                 navigate(1);
             }, 120000); 
         }
@@ -461,11 +486,19 @@
             slideshowMode = null;
             
             slideshowBtn.style.display = 'block';
-            slideshowBtn.value = ""; // Reset the dropdown back to the placeholder
-            prevBtn.style.display = 'block';
-            nextBtn.style.display = 'block';
-            styleFilterContainer.style.display = 'block';
+            slideshowBtn.value = ""; 
             
+            // Only restore buttons visibly if the time lock is over
+            if (canNavigate) {
+                prevBtn.style.display = 'block';
+                nextBtn.style.display = 'block';
+            } else {
+                prevBtn.style.display = 'block';
+                nextBtn.style.display = 'block';
+                // They will remain dimmed due to the inline opacity styles set in startViewingTimer
+            }
+            
+            styleFilterContainer.style.display = 'block';
             document.body.classList.remove('hide-info');
             
             clearInterval(slideshowInterval);
@@ -477,7 +510,6 @@
             }
         });
 
-        // Event Listeners for Keyboard (Left and Right Arrows, Spacebar for Slideshow Exit)
         window.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowLeft') navigate(-1);
             if (e.key === 'ArrowRight') navigate(1);
@@ -487,7 +519,6 @@
             }
         });
 
-        // Mobile Swipe & Tap-to-Exit Logic
         let touchStartX = 0;
         let touchEndX = 0;
         
@@ -501,24 +532,22 @@
         }, { passive: true });
 
         function handleSwipe() {
-            const swipeThreshold = 15; // Minimum pixels to count as a swipe
+            const swipeThreshold = 15; 
             if (touchEndX < touchStartX - swipeThreshold) {
-                if (isSlideshowActive) stopSlideshow();
-                navigate(1); // Swipe left -> Next
+                if (canNavigate && isSlideshowActive) stopSlideshow();
+                navigate(1); 
             } else if (touchEndX > touchStartX + swipeThreshold) {
-                if (isSlideshowActive) stopSlideshow();
-                navigate(-1); // Swipe right -> Prev
+                if (canNavigate && isSlideshowActive) stopSlideshow();
+                navigate(-1); 
             }
         }
 
-        // Tap anywhere to exit slideshow on mobile
         document.body.addEventListener('click', (e) => {
             if (isSlideshowActive && e.target.id !== 'slideshowBtn') {
                 stopSlideshow();
             }
         });
 
-        // Initialize the app by fetching data based on the current dropdown selection
         const initialOption = styleFilter.options[styleFilter.selectedIndex];
         fetchArtworks(
             initialOption.value, 
