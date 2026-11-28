@@ -142,15 +142,21 @@
 
     <!-- Style Filter Dropdown -->
     <div id="styleFilterContainer" class="absolute top-6 left-6 md:top-10 md:left-10 z-30">
-        <select id="styleFilter" class="bg-transparent border-none text-gray-800 font-['Times_New_Roman'] text-lg md:text-xl outline-none cursor-pointer hover:opacity-70 transition-opacity">
-            <option value="painting" data-min="0" data-max="2025">All Paintings</option>
-            <option value="Impressionism" data-min="1850" data-max="1930">Impressionism</option>
-            <option value="Renaissance" data-min="1300" data-max="1650">Renaissance</option>
-            <option value="Modernism" data-min="1880" data-max="1980">Modern Art</option>
-            <option value="portrait" data-min="0" data-max="2025">Portraits</option>
-            <option value="landscape" data-min="0" data-max="2025">Landscapes</option>
-            <option value="favorites" data-min="0" data-max="2025">My Collection (Favorites)</option>
-        </select>
+        <div class="relative inline-flex items-center">
+            <select id="styleFilter" class="appearance-none bg-transparent border-none text-gray-800 font-['Times_New_Roman'] text-lg md:text-xl outline-none cursor-pointer hover:opacity-70 transition-opacity pr-6 py-1">
+                <option value="painting" data-min="0" data-max="2025">All Paintings</option>
+                <option value="Impressionism" data-min="1850" data-max="1930">Impressionism</option>
+                <option value="Renaissance" data-min="1300" data-max="1650">Renaissance</option>
+                <option value="Modernism" data-min="1880" data-max="1980">Modern Art</option>
+                <option value="portrait" data-min="0" data-max="2025">Portraits</option>
+                <option value="landscape" data-min="0" data-max="2025">Landscapes</option>
+                <option value="favorites" data-min="0" data-max="2025">My Collection (Favorites)</option>
+            </select>
+            <!-- Custom tight arrow -->
+            <svg class="w-4 h-4 text-gray-800 absolute right-0 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+        </div>
     </div>
 
     <!-- Required Viewing Timer (A11y live region) -->
@@ -565,7 +571,8 @@
             imgElement.style.position = "relative";
             
             let isZoomed = false;
-            let lastTap = 0;
+            let tapCount = 0;
+            let tapTimeout;
 
             // Desktop Double Click
             imgElement.addEventListener('dblclick', function(e) {
@@ -603,11 +610,24 @@
                 isZoomed = false;
             });
 
+            // Mobile specific tap and zoom detection
             imgElement.addEventListener("touchstart", function(e) {
+                tapCount++;
+                if (tapCount === 1) {
+                    tapTimeout = setTimeout(() => {
+                        tapCount = 0;
+                    }, 400);
+                } else if (tapCount === 2) {
+                    clearTimeout(tapTimeout);
+                    tapCount = 0;
+                    triggerFavoriteAnimation(e, this, artId, true);
+                    e.preventDefault(); // Prevents jumpy zoom on double tap
+                }
+                
                 e.stopPropagation(); 
                 handleTouchZoom(e, this);
                 isZoomed = true;
-            }, { passive: true });
+            }, { passive: false });
 
             imgElement.addEventListener("touchmove", function(e) {
                 e.stopPropagation(); 
@@ -618,15 +638,7 @@
                 e.stopPropagation(); 
                 resetZoom(this);
                 isZoomed = false;
-
-                // Mobile Double Tap detection
-                const currentTime = new Date().getTime();
-                const tapLength = currentTime - lastTap;
-                if (tapLength < 300 && tapLength > 0) {
-                    triggerFavoriteAnimation(e, this, artId, true);
-                }
-                lastTap = currentTime;
-            });
+            }, { passive: true });
 
             function handleTouchZoom(e, img) {
                 if (e.touches.length > 0) {
