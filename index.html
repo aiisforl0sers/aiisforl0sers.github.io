@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Linger</title>
     
-    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <!-- FIXED: Changed to .jpg to match the file name -->
+    <link rel="apple-touch-icon" href="apple-touch-icon.jpg">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -499,8 +500,9 @@
             slideshowBtn.style.display = 'block';
             slideshowBtn.value = ""; 
             
-            prevBtn.style.display = 'block';
-            nextBtn.style.display = 'block';
+            // FIXED: Removed the inline "block" style so the responsive Tailwind classes (hidden md:block) take over again
+            prevBtn.style.display = '';
+            nextBtn.style.display = '';
             
             styleFilterContainer.style.display = 'block';
             document.body.classList.remove('hide-info');
