@@ -22,9 +22,9 @@
         .description-card {
             background-color: transparent;
             border-radius: 20px;
-            padding: 16px 24px;
+            padding: 12px 20px;
             box-shadow: none;
-            margin-top: 20px; 
+            margin-top: 10px; 
             z-index: 10;
             text-align: center;
             color: #1f2937;
@@ -34,7 +34,7 @@
         @media (max-width: 768px) {
             .description-card {
                 width: 95%;
-                margin-top: 10px;
+                margin-top: 5px;
             }
         }
 
@@ -77,15 +77,37 @@
             border-radius: 2px;
         }
 
+        /* Modifier for favorites masonry grid to scale down frame thickness */
+        .fav-frame {
+            padding: 8px !important;
+            border-width: 20px !important;
+            border-image-width: 20px !important;
+        }
+
         .artwork-image {
-            max-height: 60vh;
+            max-height: 40vh;
             width: auto;
             max-width: 100%;
             display: block;
         }
+
+        @media (min-height: 800px) {
+            .artwork-image {
+                max-height: 50vh;
+            }
+        }
     </style>
 </head>
 <body class="h-screen w-screen flex items-center justify-center relative">
+
+    <!-- Swipe Handle -->
+    <div id="swipeHandle" class="fixed top-4 left-1/2 -translate-x-1/2 z-[70] flex flex-col items-center cursor-pointer text-gray-500 hover:opacity-70 transition-opacity w-32">
+        <div class="relative w-10 h-6 flex items-center justify-center mt-2 mb-1">
+            <div id="lineLeft" class="absolute w-[20px] h-[3px] bg-gray-500 rounded-full left-0 origin-right transition-transform duration-300 -rotate-[40deg]"></div>
+            <div id="lineRight" class="absolute w-[20px] h-[3px] bg-gray-500 rounded-full right-0 origin-left transition-transform duration-300 rotate-[40deg]"></div>
+        </div>
+        <span id="swipeText" class="text-sm font-['Times_New_Roman'] text-center leading-tight tracking-wide transition-opacity duration-1000 opacity-100 pointer-events-none">swipe down to view saved</span>
+    </div>
 
     <!-- Style Filter Dropdown -->
     <div id="styleFilterContainer" class="absolute top-6 left-6 md:top-10 md:left-10 z-30">
@@ -136,12 +158,38 @@
         </svg>
     </button>
 
+    <!-- Favorites Fixed Panel -->
+    <div id="favoritesPanel" class="fixed inset-0 bg-[#fdfbf7] z-[60] transform -translate-y-full transition-transform duration-500 ease-in-out flex flex-col">
+        <div class="pt-16 pb-2 flex justify-center items-center bg-[#fdfbf7]">
+            <!-- Header area kept for spacing below the fixed sticky handle -->
+        </div>
+        <div id="favoritesContainer" class="flex-1 overflow-y-auto p-4 md:p-8 columns-2 md:columns-3 lg:columns-4 gap-4 md:gap-6 bg-[#fdfbf7]">
+            <!-- Dynamic Masonry Layout Content -->
+        </div>
+    </div>
+
+    <!-- Enlarged View Overlay -->
+    <div id="enlargedViewOverlay" class="fixed inset-0 bg-[#fdfbf7]/95 backdrop-blur-sm z-[80] opacity-0 pointer-events-none transition-opacity duration-300 flex flex-col items-center justify-center" onclick="closeEnlargedView()">
+        <div id="enlargedImageWrapper" class="transition-all duration-500 transform scale-90 opacity-0 flex flex-col items-center justify-center w-full h-full max-h-[85vh] p-4" onclick="event.stopPropagation()">
+            <div class="art-frame mb-6 flex items-center justify-center">
+                <img id="enlargedImage" src="" alt="Enlarged Artwork" class="max-h-[60vh] w-auto object-contain shadow-2xl">
+            </div>
+            
+            <button id="removeFavBtn" class="bookmark-btn focus:outline-none transition-transform hover:scale-110 text-gray-800 flex flex-col items-center gap-2 mt-4 cursor-pointer" title="Remove from saved">
+                <svg class="w-10 h-10" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5v16l7-3.5L19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2z"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
     <script>
         let artworks = [];
         let currentIndex = 0;
         let isTransitioning = true; 
         let isSlideshowActive = false;
         let slideshowMode = null;
+        let favorites = JSON.parse(localStorage.getItem('lingerFavorites') || '[]');
 
         // Viewing Timer Variables
         let canNavigate = false;
@@ -157,8 +205,209 @@
         const styleFilterContainer = document.getElementById('styleFilterContainer');
         const styleFilter = document.getElementById('styleFilter');
         const timerEl = document.getElementById('artTimer');
+        const swipeHandle = document.getElementById('swipeHandle');
+        const lineLeft = document.getElementById('lineLeft');
+        const lineRight = document.getElementById('lineRight');
+        const swipeText = document.getElementById('swipeText');
+        const favoritesPanel = document.getElementById('favoritesPanel');
+        const favoritesContainer = document.getElementById('favoritesContainer');
+
+        // Enlarged View Elements
+        const enlargedViewOverlay = document.getElementById('enlargedViewOverlay');
+        const enlargedImageWrapper = document.getElementById('enlargedImageWrapper');
+        const enlargedImage = document.getElementById('enlargedImage');
+        const removeFavBtn = document.getElementById('removeFavBtn');
+        let currentlyEnlargedId = null;
 
         currentWrapper.querySelector('.desc-content').innerHTML = "Fetching masterpieces from the Art Institute of Chicago...";
+
+        // Hide swipe instructions after 10 seconds
+        setTimeout(() => {
+            if (swipeText) swipeText.style.opacity = '0';
+        }, 10000);
+
+        // Favorites Logic
+        function toggleFavorite(artwork, imgUrl) {
+            const index = favorites.findIndex(f => f.id === artwork.id);
+            if (index > -1) {
+                favorites.splice(index, 1);
+            } else {
+                favorites.push({
+                    id: artwork.id,
+                    title: artwork.title,
+                    artist: artwork.artist_title,
+                    imageUrl: imgUrl
+                });
+            }
+            localStorage.setItem('lingerFavorites', JSON.stringify(favorites));
+            renderFavorites();
+        }
+
+        function openEnlargedView(id, imageUrl) {
+            currentlyEnlargedId = id;
+            enlargedImage.src = imageUrl;
+            
+            enlargedViewOverlay.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                enlargedImageWrapper.classList.remove('scale-90', 'opacity-0');
+                enlargedImageWrapper.classList.add('scale-100', 'opacity-100');
+            }, 50);
+        }
+
+        function closeEnlargedView() {
+            enlargedImageWrapper.classList.remove('scale-100', 'opacity-100', 'translate-y-[100vh]');
+            enlargedImageWrapper.classList.add('scale-90', 'opacity-0');
+            
+            setTimeout(() => {
+                enlargedViewOverlay.classList.add('opacity-0', 'pointer-events-none');
+                currentlyEnlargedId = null;
+                enlargedImage.src = '';
+            }, 300);
+        }
+
+        removeFavBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (currentlyEnlargedId) {
+                // Animate sliding down off screen
+                enlargedImageWrapper.classList.remove('scale-100');
+                enlargedImageWrapper.classList.add('translate-y-[100vh]', 'opacity-0');
+                
+                setTimeout(() => {
+                    // Update state and re-render grid
+                    favorites = favorites.filter(f => f.id !== currentlyEnlargedId);
+                    localStorage.setItem('lingerFavorites', JSON.stringify(favorites));
+                    renderFavorites();
+                    
+                    // Reset overlay state silently after animation completes
+                    enlargedViewOverlay.classList.add('opacity-0', 'pointer-events-none');
+                    enlargedImageWrapper.classList.remove('translate-y-[100vh]');
+                    enlargedImageWrapper.classList.add('scale-90');
+                    
+                    currentlyEnlargedId = null;
+                    enlargedImage.src = '';
+                }, 500);
+                
+                // Keep UI synced for main view if currently observing this specific artwork
+                const mainBBtn = currentWrapper.querySelector('.bookmark-btn svg');
+                if (mainBBtn && artworks[currentIndex] && artworks[currentIndex].id === currentlyEnlargedId) {
+                    mainBBtn.setAttribute('fill', 'none');
+                }
+            }
+        });
+
+        function renderFavorites() {
+            if (favorites.length === 0) {
+                favoritesContainer.innerHTML = `<div class="col-span-full text-center text-gray-500 mt-10 font-['Times_New_Roman'] text-lg">No saved artworks yet.</div>`;
+                return;
+            }
+            
+            favoritesContainer.innerHTML = favorites.map(fav => `
+                <div class="break-inside-avoid mb-4 cursor-pointer hover:opacity-90 transition-opacity" onclick="openEnlargedView(${fav.id}, '${fav.imageUrl}')">
+                    <div class="art-frame fav-frame w-full max-w-full block">
+                        <img src="${fav.imageUrl}" class="w-full h-auto block" alt="${fav.title}">
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openFavorites() {
+            favoritesPanel.classList.remove('-translate-y-full');
+            lineLeft.classList.replace('-rotate-[40deg]', 'rotate-0');
+            lineRight.classList.replace('rotate-[40deg]', 'rotate-0');
+            renderFavorites();
+        }
+
+        function closeFavorites() {
+            favoritesPanel.classList.add('-translate-y-full');
+            lineLeft.classList.replace('rotate-0', '-rotate-[40deg]');
+            lineRight.classList.replace('rotate-0', 'rotate-[40deg]');
+        }
+
+        function toggleFavoritesPanel() {
+            const isFavOpen = !favoritesPanel.classList.contains('-translate-y-full');
+            if (isFavOpen) {
+                closeFavorites();
+            } else {
+                openFavorites();
+            }
+        }
+
+        swipeHandle.addEventListener('click', toggleFavoritesPanel);
+
+        // Fallback for fullscreen if blocked by iframe permissions
+        function enterPseudoFullscreen(imgElement) {
+            const overlay = document.createElement('div');
+            overlay.className = 'fixed inset-0 bg-[#fdfbf7]/95 backdrop-blur-sm z-[100] flex flex-col items-center justify-center cursor-pointer transition-opacity duration-300 opacity-0';
+            
+            const imgWrapper = document.createElement('div');
+            imgWrapper.className = 'art-frame transition-transform duration-500 transform scale-90';
+            
+            const img = document.createElement('img');
+            img.src = imgElement.src;
+            img.className = 'max-h-[85vh] w-auto object-contain shadow-2xl';
+            
+            imgWrapper.appendChild(img);
+            overlay.appendChild(imgWrapper);
+            document.body.appendChild(overlay);
+            
+            requestAnimationFrame(() => {
+                overlay.classList.remove('opacity-0');
+                imgWrapper.classList.remove('scale-90');
+                imgWrapper.classList.add('scale-100');
+            });
+            
+            const closeOverlay = () => {
+                overlay.classList.add('opacity-0');
+                imgWrapper.classList.remove('scale-100');
+                imgWrapper.classList.add('scale-90');
+                setTimeout(() => overlay.remove(), 300);
+            };
+            
+            overlay.addEventListener('click', closeOverlay);
+        }
+
+        // Action Buttons Setup (Bookmark & Fullscreen)
+        function setupActionButtons(wrapper, currentArtwork, imageUrl) {
+            const bBtn = wrapper.querySelector('.bookmark-btn');
+            const fBtn = wrapper.querySelector('.fullscreen-btn');
+            const artworkImage = wrapper.querySelector('.artwork-image');
+
+            if (bBtn) {
+                bBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleFavorite(currentArtwork, imageUrl);
+                    const isFav = favorites.some(f => f.id === currentArtwork.id);
+                    bBtn.querySelector('svg').setAttribute('fill', isFav ? 'currentColor' : 'none');
+                });
+            }
+
+            if (fBtn) {
+                fBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    try {
+                        let fsPromise;
+                        if (artworkImage.requestFullscreen) {
+                            fsPromise = artworkImage.requestFullscreen();
+                        } else if (artworkImage.webkitRequestFullscreen) {
+                            fsPromise = artworkImage.webkitRequestFullscreen();
+                        } else if (artworkImage.msRequestFullscreen) {
+                            fsPromise = artworkImage.msRequestFullscreen();
+                        }
+
+                        if (fsPromise) {
+                            fsPromise.catch(err => {
+                                console.warn("Native fullscreen blocked by permissions, using fallback.", err);
+                                enterPseudoFullscreen(artworkImage);
+                            });
+                        } else {
+                            enterPseudoFullscreen(artworkImage);
+                        }
+                    } catch (err) {
+                        enterPseudoFullscreen(artworkImage);
+                    }
+                });
+            }
+        }
 
         // Unified Timer Logic
         function startTimer() {
@@ -171,8 +420,6 @@
             timerEl.style.opacity = '1';
             timerEl.style.color = '#6b7280'; 
             
-            // Only lock navigation buttons if we aren't in slideshow mode 
-            // (Slideshow mode hides them entirely)
             if (!isSlideshow) {
                 prevBtn.style.opacity = '0.2';
                 nextBtn.style.opacity = '0.2';
@@ -197,17 +444,14 @@
                     canNavigate = true;
                     
                     if (isSlideshowActive) {
-                        navigate(1); // Auto-advance for slideshow
+                        navigate(1); 
                     } else {
                         timerEl.innerHTML = "You may move on";
-                        
-                        // Restore navigation arrows
                         prevBtn.style.opacity = '1';
                         nextBtn.style.opacity = '1';
                         prevBtn.style.cursor = 'pointer';
                         nextBtn.style.cursor = 'pointer';
                         
-                        // Gently fade out the message if we are still in manual mode
                         setTimeout(() => {
                             if (canNavigate && !isSlideshowActive) timerEl.style.opacity = '0';
                         }, 2500);
@@ -292,6 +536,24 @@
                                 : (data.medium_display || '');
 
             const artworkLink = `https://www.artic.edu/artworks/${data.id}`;
+            const isFav = favorites.some(fav => fav.id === data.id);
+            const imageUrl = `https://www.artic.edu/iiif/2/${data.image_id}/full/843,/0/default.jpg`;
+            
+            const actionBtnsHtml = `
+                <div class="flex justify-center items-center gap-8 mt-2 pb-1">
+                    <button class="bookmark-btn focus:outline-none transition-transform hover:scale-110 text-gray-500">
+                        <svg class="w-8 h-8" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5v16l7-3.5L19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2z"></path>
+                        </svg>
+                    </button>
+                    <button class="fullscreen-btn focus:outline-none transition-transform hover:scale-110 text-gray-500">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+
             const formattedDesc = `
                 <div class="mb-1">
                     <a href="${artworkLink}" target="_blank" class="font-bold text-lg hover:text-gray-500 transition-colors" title="View on Art Institute of Chicago website">${title}</a> 
@@ -300,14 +562,14 @@
                 <div class="font-medium text-gray-800 uppercase text-xs tracking-widest mb-3">${artist}</div>
                 <div class="w-10 h-[1px] bg-gray-400 mx-auto mb-3"></div>
                 <div class="text-sm text-gray-700 leading-relaxed">${description}</div>
+                ${actionBtnsHtml}
             `;
-            
-            const imageUrl = `https://www.artic.edu/iiif/2/${data.image_id}/full/843,/0/default.jpg`;
             
             if (direction === 0) {
                 const artworkImage = currentWrapper.querySelector('img');
                 const artworkDesc = currentWrapper.querySelector('.desc-content');
                 artworkDesc.innerHTML = formattedDesc;
+                setupActionButtons(currentWrapper, data, imageUrl);
                 
                 artworkImage.onload = () => {
                     currentWrapper.classList.remove('opacity-0');
@@ -336,8 +598,9 @@
             const newImage = newWrapper.querySelector('img');
             const newDesc = newWrapper.querySelector('.desc-content');
             newDesc.innerHTML = formattedDesc;
-
+            
             document.body.appendChild(newWrapper);
+            setupActionButtons(newWrapper, data, imageUrl);
             
             newImage.onload = () => {
                 attachZoom(newImage);
@@ -373,7 +636,6 @@
             if (isTransitioning || artworks.length === 0) return;
             
             if (!canNavigate) {
-                // Flash the timer red to remind the user to slow down
                 timerEl.style.color = '#ef4444'; 
                 setTimeout(() => {
                     if (!canNavigate) timerEl.style.color = '#6b7280';
@@ -420,7 +682,6 @@
             imgElement.addEventListener("mousemove", function(e) {
                 const x = (e.offsetX / this.offsetWidth) * 100;
                 const y = (e.offsetY / this.offsetHeight) * 100;
-                
                 this.style.transformOrigin = `${x}% ${y}%`;
                 this.style.transform = "scale(2.5)"; 
                 this.style.zIndex = "50"; 
@@ -449,10 +710,8 @@
                 if (e.touches.length > 0) {
                     const touch = e.touches[0];
                     const rect = img.getBoundingClientRect();
-                    
                     let x = ((touch.clientX - rect.left) / rect.width) * 100;
                     let y = ((touch.clientY - rect.top) / rect.height) * 100;
-                    
                     x = Math.max(0, Math.min(100, x));
                     y = Math.max(0, Math.min(100, y));
 
@@ -465,7 +724,6 @@
             function resetZoom(img) {
                 img.style.transform = "scale(1)";
                 img.style.zIndex = "1";
-                
                 setTimeout(() => {
                     if (img.style.transform === "scale(1)") {
                         img.style.transformOrigin = "center center";
@@ -482,12 +740,11 @@
             prevBtn.style.display = 'none';
             nextBtn.style.display = 'none';
             styleFilterContainer.style.display = 'none';
+            swipeHandle.style.display = 'none'; // hide during slideshow
             
             if (mode === 'without-info') {
                 document.body.classList.add('hide-info');
             }
-            
-            // Initiate the slideshow countdown logic
             startTimer();
         }
 
@@ -503,9 +760,9 @@
             nextBtn.style.display = 'block';
             
             styleFilterContainer.style.display = 'block';
+            swipeHandle.style.display = 'flex';
             document.body.classList.remove('hide-info');
             
-            // Immediately unlock manual navigation upon exiting slideshow
             clearInterval(artTimerInterval);
             canNavigate = true;
             timerEl.style.opacity = '0';
@@ -522,34 +779,71 @@
         });
 
         window.addEventListener('keydown', (e) => {
+            const isFavOpen = !favoritesPanel.classList.contains('-translate-y-full');
+            if (isFavOpen) {
+                if (e.key === 'Escape') closeFavorites();
+                return;
+            }
+
             if (e.key === 'ArrowLeft') navigate(-1);
             if (e.key === 'ArrowRight') navigate(1);
+            if (e.key === 'ArrowDown') openFavorites();
             if (e.code === 'Space') {
                 e.preventDefault(); 
                 stopSlideshow();
             }
         });
 
+        // Expanded Swipe Handling (X and Y coordinates)
         let touchStartX = 0;
+        let touchStartY = 0;
         let touchEndX = 0;
+        let touchEndY = 0;
         
         window.addEventListener('touchstart', e => {
             touchStartX = e.changedTouches[0].screenX;
+            touchStartY = e.changedTouches[0].screenY;
         }, { passive: true });
 
         window.addEventListener('touchend', e => {
             touchEndX = e.changedTouches[0].screenX;
+            touchEndY = e.changedTouches[0].screenY;
             handleSwipe();
         }, { passive: true });
 
         function handleSwipe() {
-            const swipeThreshold = 15; 
-            if (touchEndX < touchStartX - swipeThreshold) {
-                if (canNavigate && isSlideshowActive) stopSlideshow();
-                navigate(1); 
-            } else if (touchEndX > touchStartX + swipeThreshold) {
-                if (canNavigate && isSlideshowActive) stopSlideshow();
-                navigate(-1); 
+            const swipeThreshold = 35; 
+            const diffX = touchEndX - touchStartX;
+            const diffY = touchEndY - touchStartY;
+            const isFavOpen = !favoritesPanel.classList.contains('-translate-y-full');
+
+            if (Math.abs(diffX) > Math.abs(diffY)) {
+                // Horizontal Swipe logic
+                if (isFavOpen) return; // Ignore horizontal swipes inside the favorites panel
+                
+                if (diffX < -swipeThreshold) {
+                    if (canNavigate && isSlideshowActive) stopSlideshow();
+                    navigate(1); 
+                } else if (diffX > swipeThreshold) {
+                    if (canNavigate && isSlideshowActive) stopSlideshow();
+                    navigate(-1); 
+                }
+            } else {
+                // Vertical Swipe logic
+                if (diffY > swipeThreshold) {
+                    // Swiped Down
+                    if (!isFavOpen) {
+                        openFavorites();
+                    }
+                } else if (diffY < -swipeThreshold) {
+                    // Swiped Up
+                    if (isFavOpen) {
+                        // Only close if user isn't scrolling down the favorites content
+                        if (favoritesContainer.scrollTop <= 0) {
+                            closeFavorites();
+                        }
+                    }
+                }
             }
         }
 
@@ -559,6 +853,7 @@
             }
         });
 
+        // Initialize App
         const initialOption = styleFilter.options[styleFilter.selectedIndex];
         fetchArtworks(
             initialOption.value, 
@@ -566,6 +861,7 @@
             parseInt(initialOption.dataset.min), 
             parseInt(initialOption.dataset.max)
         );
+        renderFavorites();
     </script>
 </body>
 </html>
