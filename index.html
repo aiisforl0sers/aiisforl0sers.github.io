@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Linger</title>
     
-    <!-- FIXED: Changed to .jpg to match the file name -->
     <link rel="apple-touch-icon" href="apple-touch-icon.jpg">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -83,6 +82,59 @@
             width: auto;
             max-width: 100%;
             display: block;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Floating Heart Animation */
+        @keyframes heartFadeUp {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            15% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            30% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            70% { opacity: 1; transform: translate(-50%, -70%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -100%) scale(1); }
+        }
+        
+        .floating-heart {
+            position: absolute;
+            pointer-events: none;
+            animation: heartFadeUp 1s ease-out forwards;
+            z-index: 100;
+        }
+
+        #favoritesGridContainer {
+            overflow-y: auto;
+            height: 100vh;
+            width: 100vw;
+            padding: 100px 20px 40px 20px;
+            box-sizing: border-box;
+            background: #ffffff;
+        }
+
+        .fav-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 3rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 768px) {
+            .fav-grid {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+        }
+        
+        .fav-grid .art-frame {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .fav-grid .artwork-image {
+            max-height: 40vh;
         }
     </style>
 </head>
@@ -97,11 +149,12 @@
             <option value="Modernism" data-min="1880" data-max="1980">Modern Art</option>
             <option value="portrait" data-min="0" data-max="2025">Portraits</option>
             <option value="landscape" data-min="0" data-max="2025">Landscapes</option>
+            <option value="favorites" data-min="0" data-max="2025">My Collection (Favorites)</option>
         </select>
     </div>
 
-    <!-- Required Viewing Timer -->
-    <div id="artTimer" class="absolute top-6 right-6 md:top-10 md:right-10 z-30 font-['Times_New_Roman'] text-gray-500 text-lg md:text-xl transition-opacity duration-500 opacity-0 pointer-events-none tracking-wide">
+    <!-- Required Viewing Timer (A11y live region) -->
+    <div id="artTimer" aria-live="polite" aria-atomic="true" class="absolute top-6 right-6 md:top-10 md:right-10 z-30 font-['Times_New_Roman'] text-gray-500 text-lg md:text-xl transition-opacity duration-500 opacity-0 pointer-events-none tracking-wide">
         0:30
     </div>
 
@@ -113,16 +166,16 @@
     </select>
 
     <!-- Left Navigation Arrow -->
-    <button id="prevBtn" class="hidden md:block absolute left-4 md:left-10 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-gray-800 transition-all duration-300 z-20 focus:outline-none">
+    <button id="prevBtn" aria-label="Previous artwork" class="hidden md:block absolute left-4 md:left-10 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-gray-800 transition-all duration-300 z-20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400">
         <svg class="w-12 h-12 md:w-16 md:h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"></path>
         </svg>
     </button>
 
-    <!-- Artwork Container -->
-    <div id="artworkWrapper" class="absolute max-w-[85vw] md:max-w-[70vw] slide-transition opacity-0 translate-x-0 flex flex-col items-center">
+    <!-- Artwork Container (A11y live region) -->
+    <div id="artworkWrapper" aria-live="polite" class="absolute max-w-[85vw] md:max-w-[70vw] slide-transition opacity-0 translate-x-0 flex flex-col items-center">
         <div class="art-frame">
-            <img src="" alt="Artwork" class="artwork-image">
+            <img src="" alt="Artwork" class="artwork-image" tabindex="0" aria-label="Artwork image. Press Enter to toggle zoom, double click to favorite.">
         </div>
         
         <div class="description-card max-w-[320px] md:max-w-[500px]">
@@ -130,8 +183,13 @@
         </div>
     </div>
 
+    <!-- Favorites Grid Container (Hidden by default) -->
+    <div id="favoritesGridContainer" class="hidden z-20 absolute top-0 left-0">
+        <div class="fav-grid" id="favoritesGrid"></div>
+    </div>
+
     <!-- Right Navigation Arrow -->
-    <button id="nextBtn" class="hidden md:block absolute right-4 md:left-auto right-4 md:right-10 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-gray-800 transition-all duration-300 z-20 focus:outline-none">
+    <button id="nextBtn" aria-label="Next artwork" class="hidden md:block absolute right-4 md:left-auto right-4 md:right-10 top-1/2 -translate-y-1/2 p-2 text-gray-300 hover:text-gray-800 transition-all duration-300 z-20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400">
         <svg class="w-12 h-12 md:w-16 md:h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"></path>
         </svg>
@@ -143,12 +201,13 @@
         let isTransitioning = true; 
         let isSlideshowActive = false;
         let slideshowMode = null;
+        let savedFavorites = JSON.parse(localStorage.getItem('linger_favorites')) || [];
 
         // Viewing Timer Variables
         let canNavigate = false;
         let artTimerInterval = null;
-        const VIEWING_TIME = 30; // 30 seconds for manual viewing lock
-        const SLIDESHOW_TIME = 120; // 2 minutes between auto-slides
+        const VIEWING_TIME = 30; 
+        const SLIDESHOW_TIME = 120; 
 
         // DOM Elements
         let currentWrapper = document.getElementById('artworkWrapper');
@@ -158,10 +217,20 @@
         const styleFilterContainer = document.getElementById('styleFilterContainer');
         const styleFilter = document.getElementById('styleFilter');
         const timerEl = document.getElementById('artTimer');
+        const favoritesGridContainer = document.getElementById('favoritesGridContainer');
+        const favoritesGrid = document.getElementById('favoritesGrid');
 
         currentWrapper.querySelector('.desc-content').innerHTML = "Fetching masterpieces from the Art Institute of Chicago...";
 
-        // Unified Timer Logic
+        // Debounce utility function
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
         function startTimer() {
             clearInterval(artTimerInterval);
             canNavigate = false;
@@ -172,8 +241,6 @@
             timerEl.style.opacity = '1';
             timerEl.style.color = '#6b7280'; 
             
-            // Only lock navigation buttons if we aren't in slideshow mode 
-            // (Slideshow mode hides them entirely)
             if (!isSlideshow) {
                 prevBtn.style.opacity = '0.2';
                 nextBtn.style.opacity = '0.2';
@@ -198,17 +265,15 @@
                     canNavigate = true;
                     
                     if (isSlideshowActive) {
-                        navigate(1); // Auto-advance for slideshow
+                        navigate(1); 
                     } else {
                         timerEl.innerHTML = "You may move on";
                         
-                        // Restore navigation arrows
                         prevBtn.style.opacity = '1';
                         nextBtn.style.opacity = '1';
                         prevBtn.style.cursor = 'pointer';
                         nextBtn.style.cursor = 'pointer';
                         
-                        // Gently fade out the message if we are still in manual mode
                         setTimeout(() => {
                             if (canNavigate && !isSlideshowActive) timerEl.style.opacity = '0';
                         }, 2500);
@@ -260,18 +325,67 @@
             }
         }
 
-        styleFilter.addEventListener('change', (e) => {
+        function renderFavoritesGrid() {
+            favoritesGrid.innerHTML = '';
+            
+            if (savedFavorites.length === 0) {
+                favoritesGrid.innerHTML = '<div class="col-span-1 md:col-span-2 text-center text-gray-500 font-[\'Times_New_Roman\'] mt-10">Your collection is empty. Double tap an artwork to save it here.</div>';
+                return;
+            }
+
+            savedFavorites.forEach(art => {
+                const itemHtml = `
+                    <div class="flex flex-col items-center">
+                        <div class="art-frame mb-4">
+                            <img src="https://www.artic.edu/iiif/2/${art.image_id}/full/843,/0/default.jpg" alt="${art.title}" class="artwork-image shadow-md" loading="lazy">
+                        </div>
+                        <div class="text-center font-['Times_New_Roman'] mt-2">
+                            <div class="font-bold text-lg text-gray-800">${art.title}</div>
+                            <div class="text-sm text-gray-600 uppercase tracking-wider mt-1">${art.artist_title || 'Unknown Artist'}</div>
+                            <button onclick="removeFromFavorites(${art.id})" class="text-xs text-red-500 hover:text-red-700 mt-2 uppercase tracking-widest transition-colors cursor-pointer outline-none">Remove</button>
+                        </div>
+                    </div>
+                `;
+                favoritesGrid.insertAdjacentHTML('beforeend', itemHtml);
+            });
+        }
+
+        window.removeFromFavorites = function(id) {
+            savedFavorites = savedFavorites.filter(a => a.id !== id);
+            localStorage.setItem('linger_favorites', JSON.stringify(savedFavorites));
+            renderFavoritesGrid();
+        };
+
+        const handleFilterChange = debounce((e) => {
             if (isTransitioning) return;
             
             clearInterval(artTimerInterval);
             timerEl.style.opacity = '0';
             canNavigate = true; 
             
+            const selectedOption = e.target.options[e.target.selectedIndex];
+            const query = selectedOption.value;
+
+            if (query === 'favorites') {
+                document.body.style.overflow = 'hidden'; 
+                currentWrapper.style.display = 'none';
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+                slideshowBtn.style.display = 'none';
+                favoritesGridContainer.classList.remove('hidden');
+                renderFavoritesGrid();
+                return;
+            } else {
+                currentWrapper.style.display = 'flex';
+                prevBtn.style.display = '';
+                nextBtn.style.display = '';
+                slideshowBtn.style.display = 'block';
+                favoritesGridContainer.classList.add('hidden');
+            }
+
             isTransitioning = true;
             currentWrapper.classList.add('opacity-0'); 
             
-            const selectedOption = e.target.options[e.target.selectedIndex];
-            const query = selectedOption.value;
             const minYear = parseInt(selectedOption.dataset.min);
             const maxYear = parseInt(selectedOption.dataset.max);
 
@@ -279,7 +393,9 @@
                 currentWrapper.querySelector('.desc-content').innerHTML = `Curating ${selectedOption.text}...`;
                 fetchArtworks(query, false, minYear, maxYear);
             }, 500); 
-        });
+        }, 500); 
+
+        styleFilter.addEventListener('change', handleFilterChange);
 
         function loadAndDisplayArtwork(index, direction = 0) {
             isTransitioning = true;
@@ -293,11 +409,12 @@
                                 : (data.medium_display || '');
 
             const artworkLink = `https://www.artic.edu/artworks/${data.id}`;
+
             const formattedDesc = `
-                <div class="mb-1">
-                    <a href="${artworkLink}" target="_blank" class="font-bold text-lg hover:text-gray-500 transition-colors" title="View on Art Institute of Chicago website">${title}</a> 
-                    <span class="italic text-gray-600">(${date})</span>
+                <div class="mb-1 flex items-center justify-center gap-3">
+                    <a href="${artworkLink}" target="_blank" class="font-bold text-lg hover:text-gray-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400" title="View on Art Institute of Chicago website">${title}</a>
                 </div>
+                <div class="italic text-gray-600 mb-2">(${date})</div>
                 <div class="font-medium text-gray-800 uppercase text-xs tracking-widest mb-3">${artist}</div>
                 <div class="w-10 h-[1px] bg-gray-400 mx-auto mb-3"></div>
                 <div class="text-sm text-gray-700 leading-relaxed">${description}</div>
@@ -312,7 +429,7 @@
                 
                 artworkImage.onload = () => {
                     currentWrapper.classList.remove('opacity-0');
-                    attachZoom(artworkImage);
+                    attachZoom(artworkImage, data.id);
                     isTransitioning = false;
                     startTimer(); 
                 };
@@ -333,15 +450,17 @@
             const startClass = direction === 1 ? 'translate-x-[150vw]' : '-translate-x-[150vw]';
             
             newWrapper.className = `absolute max-w-[85vw] md:max-w-[70vw] flex flex-col items-center slide-transition opacity-100 ${startClass}`;
+            newWrapper.setAttribute('aria-live', 'polite');
             
             const newImage = newWrapper.querySelector('img');
+            newImage.setAttribute('tabindex', '0');
             const newDesc = newWrapper.querySelector('.desc-content');
             newDesc.innerHTML = formattedDesc;
 
             document.body.appendChild(newWrapper);
             
             newImage.onload = () => {
-                attachZoom(newImage);
+                attachZoom(newImage, data.id);
                 void newWrapper.offsetWidth;
                 
                 const exitClass = direction === 1 ? '-translate-x-[150vw]' : 'translate-x-[150vw]';
@@ -371,10 +490,9 @@
         }
 
         function navigate(direction) {
-            if (isTransitioning || artworks.length === 0) return;
+            if (isTransitioning || artworks.length === 0 || styleFilter.value === 'favorites') return;
             
             if (!canNavigate) {
-                // Flash the timer red to remind the user to slow down
                 timerEl.style.color = '#ef4444'; 
                 setTimeout(() => {
                     if (!canNavigate) timerEl.style.color = '#6b7280';
@@ -413,10 +531,62 @@
         prevBtn.addEventListener('click', () => navigate(-1));
         nextBtn.addEventListener('click', () => navigate(1));
 
-        function attachZoom(imgElement) {
+        function triggerFavoriteAnimation(e, img, artId, isTouch) {
+            const artData = artworks.find(a => a.id === artId);
+            if (artData && !savedFavorites.some(a => a.id === artId)) {
+                savedFavorites.push(artData);
+                localStorage.setItem('linger_favorites', JSON.stringify(savedFavorites));
+            }
+
+            const rect = img.getBoundingClientRect();
+            let x, y;
+            if (isTouch && e.changedTouches && e.changedTouches.length > 0) {
+                const touch = e.changedTouches[0];
+                x = touch.clientX - rect.left;
+                y = touch.clientY - rect.top;
+            } else {
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
+
+            const heart = document.createElement('div');
+            heart.innerHTML = '<svg class="w-20 h-20 drop-shadow-lg" fill="#ef4444" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>';
+            heart.className = 'floating-heart';
+            heart.style.left = `${x}px`;
+            heart.style.top = `${y}px`;
+            
+            img.parentElement.appendChild(heart);
+            setTimeout(() => heart.remove(), 1000);
+        }
+
+        function attachZoom(imgElement, artId) {
             imgElement.style.transition = "transform 0.4s ease-out";
             imgElement.style.cursor = "zoom-in";
             imgElement.style.position = "relative";
+            
+            let isZoomed = false;
+            let lastTap = 0;
+
+            // Desktop Double Click
+            imgElement.addEventListener('dblclick', function(e) {
+                triggerFavoriteAnimation(e, this, artId, false);
+            });
+
+            // A11y Keyboard Zoom Trigger
+            imgElement.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (isZoomed) {
+                        resetZoom(this);
+                        isZoomed = false;
+                    } else {
+                        this.style.transformOrigin = `center center`;
+                        this.style.transform = "scale(2.5)"; 
+                        this.style.zIndex = "50";
+                        isZoomed = true;
+                    }
+                }
+            });
 
             imgElement.addEventListener("mousemove", function(e) {
                 const x = (e.offsetX / this.offsetWidth) * 100;
@@ -425,15 +595,18 @@
                 this.style.transformOrigin = `${x}% ${y}%`;
                 this.style.transform = "scale(2.5)"; 
                 this.style.zIndex = "50"; 
+                isZoomed = true;
             });
 
             imgElement.addEventListener("mouseleave", function() {
                 resetZoom(this);
+                isZoomed = false;
             });
 
             imgElement.addEventListener("touchstart", function(e) {
                 e.stopPropagation(); 
                 handleTouchZoom(e, this);
+                isZoomed = true;
             }, { passive: true });
 
             imgElement.addEventListener("touchmove", function(e) {
@@ -444,6 +617,15 @@
             imgElement.addEventListener("touchend", function(e) {
                 e.stopPropagation(); 
                 resetZoom(this);
+                isZoomed = false;
+
+                // Mobile Double Tap detection
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTap;
+                if (tapLength < 300 && tapLength > 0) {
+                    triggerFavoriteAnimation(e, this, artId, true);
+                }
+                lastTap = currentTime;
             });
 
             function handleTouchZoom(e, img) {
@@ -488,7 +670,6 @@
                 document.body.classList.add('hide-info');
             }
             
-            // Initiate the slideshow countdown logic
             startTimer();
         }
 
@@ -500,14 +681,12 @@
             slideshowBtn.style.display = 'block';
             slideshowBtn.value = ""; 
             
-            // FIXED: Removed the inline "block" style so the responsive Tailwind classes (hidden md:block) take over again
             prevBtn.style.display = '';
             nextBtn.style.display = '';
             
             styleFilterContainer.style.display = 'block';
             document.body.classList.remove('hide-info');
             
-            // Immediately unlock manual navigation upon exiting slideshow
             clearInterval(artTimerInterval);
             canNavigate = true;
             timerEl.style.opacity = '0';
@@ -524,11 +703,14 @@
         });
 
         window.addEventListener('keydown', (e) => {
+            if (styleFilter.value === 'favorites') return;
             if (e.key === 'ArrowLeft') navigate(-1);
             if (e.key === 'ArrowRight') navigate(1);
             if (e.code === 'Space') {
-                e.preventDefault(); 
-                stopSlideshow();
+                if (isSlideshowActive) {
+                    e.preventDefault(); 
+                    stopSlideshow();
+                }
             }
         });
 
@@ -540,6 +722,7 @@
         }, { passive: true });
 
         window.addEventListener('touchend', e => {
+            if (styleFilter.value === 'favorites') return;
             touchEndX = e.changedTouches[0].screenX;
             handleSwipe();
         }, { passive: true });
